@@ -1,0 +1,14 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <!-- vim: set filetype=msbuild shiftwidth=4 expandtab: -->
+    <UsingTask TaskName="ToBase64" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll" >
+        <ParameterGroup>
+            <In ParameterType="System.String" Required="true" />
+            <Out ParameterType="System.String" Output="true" />
+        </ParameterGroup>
+        <Task>
+            <Code Type="Fragment" Language="cs">
+                Out = System.Convert.ToBase64String(System.Text.Encoding.Default.GetBytes(In));
+            </Code>
+        </Task>
+    </UsingTask>
+</Project>

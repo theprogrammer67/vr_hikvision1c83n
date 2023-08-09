@@ -1,0 +1,137 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Make">
+
+  <UsingTask TaskName="FindItems" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="CopyItems" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="ProjectDependencyCheck" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="GatherDependencies" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="MessageMap" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="BuildGroup" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+
+  <Target Name="_ResolveProjects">
+    <FindItems
+      Condition="'$(Projects)'!=''"
+      Filenames="$(Projects)"
+      Inputs="@(Projects)">
+      <Output 
+        TaskParameter="Outputs"
+        ItemName="ProjectItems"
+      />
+    </FindItems>
+    <CopyItems
+      Condition="'$(Projects)'==''"
+      Items="@(Projects)">
+      <Output 
+        TaskParameter="Outputs"
+        ItemName="ProjectItems"
+      />
+    </CopyItems>
+  </Target>
+
+  <Target Name="_ProjectDepCheck" DependsOnTargets="_ResolveProjects">
+    <ProjectDependencyCheck
+      Projects="@(ProjectItems)"
+      AllProjects="@(Projects)">
+      <Output
+        TaskParameter="ProjectsToBuild"
+        ItemName="ProjectsWithDependencies"
+      />
+    </ProjectDependencyCheck>
+  </Target>
+
+  <Target Name="_ResolveProjectDependencies" DependsOnTargets="_ProjectDepCheck">
+    <RemoveDuplicates 
+      Inputs="@(ProjectsWithDependencies)">
+      <Output
+        TaskParameter="Filtered"
+        ItemName="ProjectsToBuild"/>
+    </RemoveDuplicates>
+  </Target>
+  
+  <Target Name="_Execute" Outputs="%(ProjectsToBuild.Identity)">
+    <MSBuild
+      Projects="%(ProjectsToBuild.Identity)"
+      Targets="$(Targets)"
+      Properties="$(MSBuildProperties)"
+    />
+  </Target>
+  
+  <!-- 
+    Executes the target specified on the command line on all projects in the project group.
+    Usage: msbuild.exe /t:ExecuteTargets /p:Targets=[semi-colon delimited list of targets] 
+  -->
+  
+  <Target Name="ExecuteTargets" DependsOnTargets="_ResolveProjectDependencies">
+    <MessageMap
+      Condition="'$(Targets)'!='' And '@(ProjectsToBuild)'!= ''"
+      FormatString="strRunningTargets"
+      Arg0="$(Targets)"
+      Arg1="@(ProjectsToBuild)"
+    />
+    <CallTarget Targets="_Execute"/>
+  </Target>
+  
+  <!-- Predefined targets, invoked normally via /t:[TargetName] -->
+  
+  <!-- Clean/Make/Build active configurations only -->
+  <Target Name="Clean">
+    <MSBuild
+      Condition="'$(BuildGroup)'==''"
+      Projects="@(Projects)"
+      Targets="Clean"
+    />    
+    <BuildGroup
+      Condition="'$(BuildGroup)'!=''"
+      Projects="@(Projects)"
+      GroupItems="@(BuildGroupProject)"
+      Targets="Clean"
+     />         
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="_ResolveProjectDependencies">
+    <MSBuild
+      Condition="'$(BuildGroup)'==''"
+      Projects="@(Projects)"
+      Targets="Build"/>  
+    <BuildGroup
+      Condition="'$(BuildGroup)'!=''"
+      Projects="@(Projects)"
+      GroupItems="@(BuildGroupProject)"
+      Targets="Build"
+     />         
+  </Target>
+  
+  <Target Name="Make" DependsOnTargets="_ResolveProjectDependencies">
+    <MSBuild
+      Condition="'$(BuildGroup)'==''"
+      Projects="@(Projects)"
+      Targets="Make"/>
+    <BuildGroup
+      Condition="'$(BuildGroup)'!=''"
+      Projects="@(Projects)"
+      GroupItems="@(BuildGroupProject)"
+      Targets="Make"
+     />         
+  </Target>
+
+  <!-- Clean/Make/Build all configurations of all projects -->
+  
+  <Target Name="CleanAll">
+    <MSBuild
+      Projects="@(Projects)"
+      Targets="CleanAll"
+    />    
+  </Target>
+
+  <Target Name="BuildAll" DependsOnTargets="_ResolveProjectDependencies">
+    <MSBuild
+      Projects="@(Projects)"
+      Targets="BuildAll"/>   
+  </Target>
+  
+  <Target Name="MakeAll" DependsOnTargets="_ResolveProjectDependencies">
+    <MSBuild
+      Projects="@(Projects)"
+      Targets="MakeAll"/>  
+  </Target>
+  
+</Project>

@@ -1,0 +1,101 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<TemplateDirECROnline>$(MSBuildThisFileDirectory)Templates\ECROnline\</TemplateDirECROnline>
+		<FileVersionFile>FileVersion.txt</FileVersionFile>		
+		<InfoName>info</InfoName>
+		<ManifestName>manifest</ManifestName>
+		<InstallName>install</InstallName>
+		<ProgId  Condition="'$(ProgId)' == ''">Addin.$(OUTPUTNAME)</ProgId>
+	</PropertyGroup>
+
+	<Target Name="BuildECROnline">
+		<WriteLinesToFile  
+                File="$(FileVersionFile)"  
+                Lines="$(FileVersion)"  
+                Overwrite="true"  
+                Encoding="Unicode"/>  
+
+
+		<ConvertToAbsolutePath Paths="$(DCC_ExeOutput)\">
+			<Output TaskParameter="AbsolutePaths" PropertyName="OutputDirAbsolute"/>
+		</ConvertToAbsolutePath>
+
+		<PropertyGroup>
+			<ECROnlinePath>$(OutputDirAbsolute)$(DrvMTEName).mte</ECROnlinePath>
+			<ProgId  Condition="'$(ProgId)' == ''">Addin.$(OUTPUTNAME)</ProgId>
+		</PropertyGroup>
+
+		<Version VersionFile="$(FileVersionFile)" BuildType="None" RevisionType="None">
+			<Output TaskParameter="Major" PropertyName="VersionMajor" />
+			<Output TaskParameter="Minor" PropertyName="VersionMinor" />
+			<Output TaskParameter="Revision" PropertyName="VersionRevision" />
+		</Version>
+
+		<Error Text="FileVersion is not set" Condition="'$(FileVersion)' == ''"/>
+		<Error Text="EqType is not set" Condition="'$(EqType)' == ''"/>
+		<Error Text="EqModelName is not set" Condition="'$(EqModelName)' == ''"/>
+		<Error Text="ModelID is not set" Condition="'$(ModelID)' == ''"/>
+		<Error Text="LibFileName is not set" Condition="'$(OutputFilename)' == ''"/>
+		<Error Text="EqDescription is not set" Condition="'$(EqDescription)' == ''"/>
+		<Error Text="MajorVersion is not set" Condition="'$(VersionMajor)' == ''"/>
+		<Error Text="MinorVersion is not set" Condition="'$(VersionMinor)' == ''"/>
+		<Error Text="Revision is not set" Condition="'$(VersionRevision)' == ''"/>
+
+		<ItemGroup>
+			<ECROnline_Tokens Include="FileVersion">
+				<ReplacementValue>$(FileVersion)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="ProgId">
+				<ReplacementValue>$(ProgId)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="EqType">
+				<ReplacementValue>$(EqTypeECR)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="EqModelName">
+				<ReplacementValue>$(EqModelName)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="ModelID">
+				<ReplacementValue>$(ModelID)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="LibFileName">
+				<ReplacementValue>$(OutputFilename)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="EqDescription">
+				<ReplacementValue>$(EqDescription)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="MajorVersion">
+				<ReplacementValue>$(VersionMajor)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="MinorVersion">
+				<ReplacementValue>$(VersionMinor)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="Revision">
+				<ReplacementValue>$(VersionRevision)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="AppFileName">
+				<ReplacementValue>$(AppFileName)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="LibFileNameAdd1">
+				<ReplacementValue>$(LibFileNameAdd1)</ReplacementValue>
+			</ECROnline_Tokens>
+			<ECROnline_Tokens Include="ComponentType">
+				<ReplacementValue>$(ComponentType)</ReplacementValue>
+			</ECROnline_Tokens>
+
+		</ItemGroup>
+
+		<MSBuild.Community.Tasks.TemplateFile Template="$(TemplateDirECROnline)$(InfoName).tmpl" OutputFilename="$(OutputDirAbsolute)$(InfoName).xml" Tokens="@(ECROnline_Tokens)"/>
+		<MSBuild.Community.Tasks.TemplateFile Template="$(TemplateDirECROnline)$(ManifestName).tmpl" OutputFilename="$(OutputDirAbsolute)$(ManifestName).xml" Tokens="@(ECROnline_Tokens)"/>
+		<MSBuild.Community.Tasks.TemplateFile Template="$(TemplateDirECROnline)$(InstallName).tmpl" TemplateEncoding="UTF-16" OutputFilename="$(OutputDirAbsolute)$(InstallName).xml" Tokens="@(ECROnline_Tokens)"/>
+		<ItemGroup>
+			<ZipFilesECROnline Include="$(OutputDirAbsolute)$(InfoName).xml;$(OutputDirAbsolute)$(ManifestName).xml;$(OutputDirAbsolute)$(InstallName).xml;$(OutputDirAbsolute)$(OutputFilename)"
+				  Exclude="$(OutputDirAbsolute)*.zip"/>
+
+			<FilesToClean Include="$(OutputDirAbsolute)*.xml" />
+		</ItemGroup>
+		<MSBuild.Community.Tasks.Zip WorkingDirectory="$(OutputDirAbsolute)" Files="@(ZipFilesECROnline);@(PacketResources)" ZipFileName="$(ECROnlinePath)" />
+		<Message Text="FilesToClean...@(FilesToClean)"/>
+		<Delete Files="@(FilesToClean)"/>
+		<Delete Files="$(FileVersionFile)" />
+	</Target>
+</Project>

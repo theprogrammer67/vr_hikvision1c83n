@@ -1,0 +1,55 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <!-- vim: set filetype=msbuild shiftwidth=4 expandtab: -->
+    <Import Project="SourceTasks\UsingTask.targets"/>
+    <PropertyGroup>
+        <MarkdigAssembly Condition="'$(MarkdigAssembly)' == ''">$(MSBuildToolsPath)\Markdig\Markdig.dll</MarkdigAssembly>
+    </PropertyGroup>
+    <UsingTask TaskName="Markdown2HTML" TaskFactory="CodeTaskFactory" AssemblyFile="$(UsingTaskAssemblyPath)">
+        <ParameterGroup>
+            <MarkdownFile ParameterType="System.String" Required="false" />
+            <MarkdownText ParameterType="System.String" Required="false" />
+            <OutputFile ParameterType="System.String" Output="true" />
+            <Output ParameterType="System.String" Output="true" />
+        </ParameterGroup>
+        <Task>
+            <Reference Include="$(MarkdigAssembly)"/>
+            <Using Namespace="Markdig"/>
+            <Code Type="Fragment" Language="cs"><![CDATA[
+                try {
+                    if (! String.IsNullOrEmpty(MarkdownFile)) {
+                        if (!File.Exists(MarkdownFile)) {
+                            Log.LogError("Markdown file {0} not found!", MarkdownFile);
+                            return false;
+                        };
+                        Log.LogMessage("Reading file {0}", MarkdownFile);
+                        MarkdownText = System.IO.File.ReadAllText(MarkdownFile, Encoding.UTF8);
+                    }
+                    if (String.IsNullOrEmpty(MarkdownText)) {
+                        Log.LogError("MarkdownText is not set (or MarkdownFile is empty)");
+                        return false;
+                    }
+                    Output = Markdown.ToHtml(MarkdownText);
+                    if (! String.IsNullOrEmpty(OutputFile)) {
+                        Log.LogMessage("Output to file {0}", OutputFile);
+                        System.IO.File.WriteAllText(OutputFile, Output);
+                    }
+                } catch(Exception ex) {
+                    Log.LogErrorFromException(ex);
+                    return false;
+                }
+            ]]>
+            </Code>
+        </Task>
+    </UsingTask>
+
+    <Target Name="CheckMarkdigInstalled">
+        <Error Text="Markdig library is not installed to $(MarkdigAssembly)"
+            Condition="!Exists('$(MarkdigAssembly)')"/>
+    </Target>
+
+    <Target Name="MarkdownToHTML" DependsOnTargets="CheckMarkdigInstalled" Outputs="$(MarkdownAsHTML)">
+        <Markdown2HTML MarkdownFile="$(MarkdownFile)" MarkdownText="$(MarkdownText)" OutputFile="$(OutputFile)">
+            <Output TaskParameter="Output" PropertyName="MarkdownAsHTML"/>
+        </Markdown2HTML>
+    </Target>
+</Project>

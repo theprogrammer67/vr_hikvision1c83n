@@ -1,0 +1,12 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <Import Project="*.Targets"/>
+
+    <Target Name="Build">
+        <Message Text="Imported all targets"/>
+    </Target>
+
+    <Target Name="Deploy">
+        <Exec Command="bash -c 'echo -e &quot;put -r *\nput -r .git&quot;' | sftp &quot;$(CI_ENVIRONMENT_URL.Replace('ssh://', '')):$(PublishDirectory)&quot;"/>
+    </Target>
+
+</Project>

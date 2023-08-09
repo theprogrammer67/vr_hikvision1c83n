@@ -1,0 +1,8 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <!-- vim: set filetype=msbuild shiftwidth=4 expandtab: -->
+    <PropertyGroup>
+        <UsingTaskAssemblyPath Condition="Exists('$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll')">$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll</UsingTaskAssemblyPath>
+        <UsingTaskAssemblyPath Condition="Exists('$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll')">$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll</UsingTaskAssemblyPath>
+        <UsingTaskAssemblyPath Condition="Exists('$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll')">$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll</UsingTaskAssemblyPath>
+    </PropertyGroup>
+</Project>

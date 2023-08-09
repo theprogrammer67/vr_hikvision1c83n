@@ -1,0 +1,22 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Target Name="FixResolveOutputPath" BeforeTargets="ResolveOutputs">
+		<Message Text="Fixing OUTPUTPATH (= '$(OUTPUTPATH)')" />
+		<CreateItem Include="@(DelphiCompile->'$(DCC_ExeOutput)\%(Filename)$(ProjectOutputExtension)')">
+			<Output	TaskParameter="Include" ItemName="OutputPath"/>
+		</CreateItem>
+		<CreateProperty Value="%(OutputPath.FullPath)">
+			<Output TaskParameter="Value" PropertyName="OUTPUTPATH"/>
+		</CreateProperty>
+		<Message Text="Now OUTPUTPATH = '$(OUTPUTPATH)'" />
+	</Target>
+	<Target Name="FixResolveOutputDir" BeforeTargets="ResolveOutputs">
+		<Message Text="Fixing OUTPUTDIR = '$(OUTPUTDIR')" />
+		<CreateItem Include="$(DCC_ExeOutput)">
+			<Output	TaskParameter="Include" ItemName="OutputDir"/>
+		</CreateItem>
+		<CreateProperty Value="%(OutputDir.FullPath)">
+			<Output TaskParameter="Value" PropertyName="OUTPUTDIR"/>
+		</CreateProperty>
+		<Message Text="Now OUTPUTDIR = '$(OUTPUTDIR)'" />
+	</Target>
+</Project>

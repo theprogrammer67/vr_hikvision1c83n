@@ -1,0 +1,65 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <Import Project="SourceTasks\Delphi.SetFileVersion.task"/>
+	<PropertyGroup>
+		<viCompanyName Condition="$(viCompanyName)==''">1C-Rarus</viCompanyName>
+		<viFileDescription Condition="$(viFileDescription)==''"></viFileDescription>
+		<viInternalName Condition="$(viInternalName)==''">$(OutputFilename)</viInternalName>
+		<viLegalCopyright Condition="$(viLegalCopyright)==''">(c) 1C-Rarus</viLegalCopyright>
+		<viLegalTrademarks Condition="$(viLegalTrademarks)==''">1C, 1C-Rarus</viLegalTrademarks>
+		<viOriginalFilename Condition="$(viOriginalFilename)==''">$(OutputFilename)</viOriginalFilename>
+		<viProductName Condition="$(viProductName)==''"></viProductName>
+		<viProductVersion Condition="$(viProductVersion)==''"></viProductVersion>
+	</PropertyGroup>
+
+	<Target Name='_SetVersionCode_Name'>
+		<Message Text="$(VerInfo_Keys)" />
+		<ItemGroup>
+			<!-- !!! versionCode is lowercased -->
+			<VerInfoProperties Include="versionCode">
+				<Value>$(VersionCode)</Value>
+			</VerInfoProperties>
+			<!-- !!! versionName is lowercased -->
+			<VerInfoProperties Include="versionName">
+				<Value>$(VersionName)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="FileVersion">
+				<Value>$(FileVersion)</Value>
+			</VerInfoProperties>
+			
+			<VerInfoProperties Include="CompanyName">
+				<Value>$(viCompanyName)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="FileDescription">
+				<Value>$(viFileDescription)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="InternalName">
+				<Value>$(viInternalName)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="LegalCopyright">
+				<Value>$(viLegalCopyright)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="LegalTrademarks">
+				<Value>$(viLegalTrademarks)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="OriginalFilename">
+				<Value>$(viOriginalFilename)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="ProductName">
+				<Value>$(viProductName)</Value>
+			</VerInfoProperties>
+			<VerInfoProperties Include="ProductVersion">
+				<Value>$(viProductVersion)</Value>
+			</VerInfoProperties>
+		</ItemGroup>
+		<__SetFileVersion VerInfoKeys="$(VerInfo_Keys)" VerInfoProperties="@(VerInfoProperties)">
+			<Output PropertyName="VerInfo_Keys" TaskParameter="Out" />
+		</__SetFileVersion>
+		<Message Text="$(VerInfo_Keys)" />
+	</Target>
+	<Target Name='_SetFileVersion' BeforeTargets="_BuildRCFile;BuildAndroidManifestList"
+      Condition="($(VersionCode)!='' or $(VersionName)!='' or $(FileVersion)!='')">
+		<CallTarget
+        Targets='_SetVersionCode_Name'
+     />
+	</Target>
+</Project>

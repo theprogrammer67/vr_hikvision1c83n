@@ -1,0 +1,86 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <Import Project="SourceTasks\UsingTask.targets"/>
+     <PropertyGroup>
+        <BuildHintsLogFileName Condition="$(BuildHintsLogFileName)==''">$(Platform)\$(Config)\build.hints.log</BuildHintsLogFileName>
+    </PropertyGroup>
+    <UsingTask TaskName="__TestHintsAndWarnings" TaskFactory="CodeTaskFactory" AssemblyFile="$(UsingTaskAssemblyPath)">
+        <ParameterGroup>
+          <LogFile ParameterType="System.String" Required="true" />
+          <FailIfNotExist ParameterType="System.Boolean" Required="true" />
+          <Ignored ParameterType="System.String" Required="false" />
+        </ParameterGroup>
+        <Task>
+            <Using Namespace="System.Text.RegularExpressions" />
+            <Code Type="Fragment" Language="cs"><![CDATA[
+                Log.LogMessageFromText(String.Format("Testing hints and warnings. File {0}", LogFile), MessageImportance.Normal);
+                bool ToFail = false;
+                try
+                {   // Open the text file using a stream reader.
+                    FileStream file = new FileStream(LogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using (StreamReader sr = new StreamReader(file))
+                    {
+                        Regex r = new Regex(@"warning ((W|H)\d{4})$", RegexOptions.IgnoreCase);
+                        String[] IgnoredWarnings = new String[0];
+                        if (! String.IsNullOrEmpty(Ignored))
+                        {
+                            IgnoredWarnings = Ignored.Split(';');
+                        }
+                        while (sr.Peek() >= 0)
+                        {
+                            String line = sr.ReadLine();
+                            if (! String.IsNullOrEmpty(line))
+                            {
+                                String[] linesplit = line.Split(':');
+                                if (linesplit.Length > 1)
+                                {
+                                    String file_pos = linesplit[0];
+                                    String hint_file = file_pos.Split('(')[0];
+                                    String hint_warning = linesplit[1];
+                                    Match m = r.Match(hint_warning);
+                                    if (m.Success)
+                                    {
+                                        String hint_warn = m.Groups[1].Captures[0].Value;
+                                        if (IgnoredWarnings.Length == 0)
+                                        {
+                                            ToFail = true;
+                                            Log.LogWarning("{0}: NOT ignoring! Will fail!", hint_warn);
+                                        } else if (Array.IndexOf(IgnoredWarnings, hint_warn) >= 0
+                                          || Array.IndexOf(IgnoredWarnings, String.Format("{0}:{1}", hint_file, hint_warn)) >= 0
+                                          || Array.IndexOf(IgnoredWarnings, String.Format("{0}:{1}", file_pos, hint_warn)) >= 0)
+                                        {
+                                            Log.LogMessageFromText(String.Format("ignoring: {0}; {1}", hint_warn, file_pos), MessageImportance.Normal);
+                                        } else {
+                                            ToFail = true;
+                                            Log.LogWarning("{0}:{1}: not ignored. Will fail!", file_pos, hint_warn);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (FailIfNotExist)
+                    {
+                        Log.LogError("The file {0} could not be read: {1} ", LogFile, e.Message);
+                        return false;
+                    } else {
+                        Log.LogWarning("The file {0} could not be read: {1} ", LogFile, e.Message);
+                    }
+                }
+                if (ToFail)
+                {
+                    Log.LogError("Fail because of non-ignored hints and warnings");
+                    return false;
+                }
+        ]]></Code>
+        </Task>
+    </UsingTask>
+    <Target Name="TestHintsAndWarnings" AfterTargets="CoreBuild">
+        <PropertyGroup>
+            <TestHintsAndWarningFailIfFileNotExist Condition="$(TestHintsAndWarningFailIfFileNotExist)==''">true</TestHintsAndWarningFailIfFileNotExist>
+        </PropertyGroup>
+        <__TestHintsAndWarnings LogFile="$(BuildHintsLogFileName)" FailIfNotExist="$(TestHintsAndWarningFailIfFileNotExist)" Ignored="$(IgnoredHintsAndWarnings)"/>
+    </Target>
+</Project>

@@ -1,0 +1,6 @@
+[submodule "lib/delphi-markdown"]
+	path = lib/delphi-markdown
+	url = ../../lib/delphi-markdown.git
+[submodule "lib/equipment/common/cf"]
+	path = lib/equipment/common/cf
+	url = ../../lib/equipment/common/cf

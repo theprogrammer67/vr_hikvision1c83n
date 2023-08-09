@@ -1,0 +1,14 @@
+__history/
+Win32/
+iOSDevice/
+iOSSimulator/
+Android/
+Profiling/
+*.local
+*.orig
+*.identcache
+*.*res
+*.stat
+bin/
+dcu/
+Gemfile.lock

@@ -1,0 +1,51 @@
+variables:
+    BDS: "$BDS_D10_1"
+    Platform: Win32
+    Config: Release
+    GIT_SUBMODULE_STRATEGY: recursive
+
+build-delphi-2007:
+    stage: build
+    tags:
+    - delphi-2007
+    variables:
+        BDS: "$BDS_D2007"
+    script:
+        - msbuild /t:build EquipmentCommonCF.ciproj /p:DCC_Exeoutput=bin
+
+build-delphi-xe-7:
+    stage: build
+    tags:
+    - delphi-xe7
+    script:
+        - msbuild /t:build EquipmentCommonCF.ciproj /p:DCC_Exeoutput=bin
+
+build-delphi-seattle:
+    stage: build
+    tags:
+    - delphi-10-seattle
+    script:
+        - msbuild /t:build EquipmentCommonCF.ciproj /p:DCC_Exeoutput=bin
+
+build-delphi-berlin:
+    stage: build
+    tags:
+    - delphi-10.1-berlin
+    script:
+        - msbuild /t:build EquipmentCommonCF.ciproj /p:DCC_Exeoutput=bin
+
+test-delphi-2007:
+    tags:
+    - delphi-2007
+    variables:
+        BDS: "$BDS_D2007"
+    script:
+        - msbuild /t:build-test EquipmentCommonCF.ciproj /p:DCC_Exeoutput=bin
+        - bin\EquipmentCommonCFTests.exe
+
+test-delphi-seattle:
+    tags:
+    - delphi-10-seattle
+    script:
+        - msbuild /t:build-test EquipmentCommonCF.ciproj /p:DCC_Exeoutput=bin
+        - bin\EquipmentCommonCFTests.exe

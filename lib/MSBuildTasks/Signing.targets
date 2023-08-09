@@ -1,0 +1,5 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <Import Project="SourceTasks\Signing.Text.task"/>
+    <Import Project="SourceTasks\Signing.File.task"/>
+    <Import Project="SourceTasks\Base64.task"/>
+</Project>

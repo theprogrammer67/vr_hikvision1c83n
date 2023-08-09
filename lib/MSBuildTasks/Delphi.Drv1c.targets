@@ -1,0 +1,78 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" Condition="Exists('$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets')" />
+	<Import Project="$(MSBuildThisFileDirectory)Delphi.Publish.targets" Condition="Exists('$(MSBuildThisFileDirectory)Delphi.Publish.targets')"/>
+
+	<PropertyGroup>
+		<TemplateDirDrv1c>$(MSBuildThisFileDirectory)Templates\Drv1c\</TemplateDirDrv1c>
+		<InfoName>info</InfoName>
+		<ManifestName>manifest</ManifestName>
+		<Drv1cPath>$(OutputDir)$(OUTPUTNAME).zip</Drv1cPath>
+		<ProgId  Condition="'$(ProgId)' == ''">AddIn.$(OUTPUTNAME)</ProgId>
+		<ComponentType  Condition="'$(ComponentType)' == ''">com</ComponentType>
+	</PropertyGroup>
+
+	<Target Name="BuildDrv1c">		    						
+		<Error Text="FileVersion is not set" Condition="'$(FileVersion)' == ''"/>
+		<Error Text="EqType is not set" Condition="'$(EqType)' == ''"/>
+		<Error Text="EqModelName is not set" Condition="'$(EqModelName)' == ''"/>
+
+		<ItemGroup>
+			<Drv1c_Tokens Include="FileVersion">
+				<ReplacementValue>$(FileVersion)</ReplacementValue>
+			</Drv1c_Tokens>
+			<Drv1c_Tokens Include="ProgId">
+				<ReplacementValue>$(ProgId)</ReplacementValue>
+			</Drv1c_Tokens>
+			<Drv1c_Tokens Include="EqType">
+				<ReplacementValue>$(EqType)</ReplacementValue>
+			</Drv1c_Tokens>
+			<Drv1c_Tokens Include="EqModelName">
+				<ReplacementValue>$(EqModelName)</ReplacementValue>
+			</Drv1c_Tokens>
+			<Drv1c_Tokens Include="LibFileName">
+				<ReplacementValue>$(OutputFilename)</ReplacementValue>
+			</Drv1c_Tokens>
+			<Drv1c_Tokens Include="ComponentType">
+				<ReplacementValue>$(ComponentType)</ReplacementValue>
+			</Drv1c_Tokens>
+			<TemplateFiles Include="$(TemplateDirDrv1c)*.tmpl"/>
+		</ItemGroup>
+		
+		<ConvertToAbsolutePath Paths="$(OutputDir)">
+			<Output TaskParameter="AbsolutePaths" PropertyName="OutputDirAbsolute"/>
+		</ConvertToAbsolutePath>
+
+		<MSBuild.Community.Tasks.TemplateFile Template="$(TemplateDirDrv1c)$(InfoName).tmpl" OutputFilename="$(OutputDirAbsolute)$(InfoName).xml" Tokens="@(Drv1c_Tokens)"/>
+		<MSBuild.Community.Tasks.TemplateFile Template="$(TemplateDirDrv1c)$(ManifestName).tmpl" OutputFilename="$(OutputDirAbsolute)$(ManifestName).xml" Tokens="@(Drv1c_Tokens)"/>
+
+		<ItemGroup>
+			<ZipFilesDrv1c Include="$(OutputDir)$(InfoName).xml;$(OutputDir)$(ManifestName).xml;$(OutputDir)$(OutputFilename)" Exclude="$(OutputDir)*.zip"/>
+		</ItemGroup>
+		<MSBuild.Community.Tasks.Zip WorkingDirectory="$(OutputDir)" Files="@(ZipFilesDrv1c)" ZipFileName="$(Drv1cPath)" />
+		<Delete Files="@(ZipFilesDrv1c)" />
+	</Target>
+
+	<Target Name="DefaultPublish" DependsOnTargets="Sign;BuildDrv1c;Generate-Changelog">
+		<Error Text="PublishDirectory is not set" Condition="'$(PublishDirectory)' == ''"/>
+		<PropertyGroup>
+			<PublishSource Condition="'$(PublishSource)'==''">$(Drv1cPath)</PublishSource>
+		</PropertyGroup>
+
+		<MSBuild Projects ="$(MSBuildProjectFullPath)"
+             Properties="PublishSource=$(PublishSource);ExternalCall=1;PublishDirectory=$(PublishDirectory)"
+             Targets="_Publish" />
+		
+		<!-- Скопируем файл обработки 1С, если есть -->
+		<Copy Condition="Exists('$(MSBuildProjectDirectory)\$(OUTPUTNAME).epf')" SourceFiles="$(MSBuildProjectDirectory)\$(OUTPUTNAME).epf" DestinationFolder="$(PublishDirectory)"/>
+	</Target>
+	
+	<Target Name="PublishAdditionalFiles">		
+		<!-- Если не задан список файлов, копируем все файлы 1С-Обработок -->
+		<ItemGroup>
+			<AdditionalFiles Include="$(MSBuildProjectDirectory)\*.epf"
+				Condition="'@(AdditionalFiles)' == ''">
+			</AdditionalFiles>
+		</ItemGroup>
+		<Copy Condition="'@(AdditionalFiles)' != ''" SourceFiles="@(AdditionalFiles)" DestinationFolder="$(PublishDirectory)"/>
+	</Target>
+</Project>

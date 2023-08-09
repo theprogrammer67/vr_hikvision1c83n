@@ -1,0 +1,122 @@
+﻿<!--
+===============================================================================================
+
+  CodeGear.Profiles.Targets
+
+  WARNING
+
+  DO NOT MODIFY unless you have made a backup of these files.  Modifying
+  this file unless you have knowledge about MSBuild you could cause problems
+  when loading or building projects in the IDE or building from the
+  command-line.
+
+===============================================================================================
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="">
+
+  <UsingTask TaskName="ExpandItemNoDups" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="FrameworkBuilder" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="ContainsString" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+
+  <PropertyGroup>
+    <MakeDependsOnTargets>$(MakeDependsOnTargets);_VerifyProfileFile;_CheckPlatformSDK</MakeDependsOnTargets>
+    <LinkDependsOnTargets>$(LinkDependsOnTargets);_VerifyProfileFile;_CheckPlatformSDK</LinkDependsOnTargets>
+    <MakeOneDependsOnTargets>$(MakeOneDependsOnTargets);_VerifyProfileFile;_CheckPlatformSDK</MakeOneDependsOnTargets>
+    <PreprocessDependsOnTargets>_VerifyProfileFile;_CheckPlatformSDK;$(PreprocessDependsOnTargets)</PreprocessDependsOnTargets>
+    <ProductVersion Condition="'$(ProductVersion)'==''">17.0</ProductVersion>
+    <Profile Condition="'$(Profile)'==''">$(DefaultProfile)</Profile>
+    <PlatformSDK Condition="'$(PlatformSDK)'==''">$(DefaultPlatformSDK)</PlatformSDK>
+  </PropertyGroup>
+
+  <Target Name="_VerifyProfile" Condition="'$(Platform)'!='$(cAndroidPlatform)'">
+    <Error Condition="'$(Profile)'==''"
+      Text="Missing profile name. Unable to get a valid profile from environment options file. Process aborted. "/>
+  </Target>
+
+  <Target Name="_VerifyProfileFile" Condition="'$(Platform)'!='$(cAndroidPlatform)'">
+    <Error Condition="'$(Profile)'!='' And !Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(Profile).profile')"
+      Text="Specified profile not found: '$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(Profile).profile'"/>
+  </Target>
+
+  <Import Condition="'$(PlatformSDK)'!='' And Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)')"
+    Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)"/>
+
+  <Target Name="_VerifyPlatformSDKFile">
+    <Error Condition="'$(PlatformSDK)'!='' And !Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)')"
+      Text="Specified platform sdk not found: '$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)'"/>
+  </Target>
+	
+  <!-- Currently an SDK can be shared by several platforms (example: iOSDevice32 & iOSDevice64).
+   So, We must check if the platform/s are in the group of platforms allowed. -->
+  <Target Name="_PlatformExists" Condition="'$(Profile_platform)'!=''">		
+    <ContainsString      
+	  Text="$(Profile_platform)"
+      Substring="$(Platform)"
+      Separator=";">
+      <Output
+        TaskParameter="Result"
+        PropertyName="PlatformExists"
+      />
+    </ContainsString>	
+  </Target>
+  
+  <Target Name="_CheckPlatformSDK" DependsOnTargets="_VerifyPlatformSDKFile;_PlatformExists">
+	  <Error Condition="'$(PlatformSDK)'!='' And '$(PlatformExists)'=='true' And !Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)')"
+      Text="Specified platform sdk not found: '$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)'"/>    
+	  <CallTarget Condition="'$(PlatformSDK)'!='' And '$(PlatformExists)'=='true' And Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\$(PlatformSDK)')"
+	      Targets="_GatherPlatformSDKPaths"/>
+  </Target>
+  <Target Name="_CollapsePaths">
+    <ExpandItemNoDups Source="@(ProfileInclude)">
+      <Output
+        TaskParameter="Value"
+        PropertyName="ProfileIncludePath"
+      />
+    </ExpandItemNoDups>
+    <ExpandItemNoDups Source="@(ProfileLibrary)">
+      <Output
+        TaskParameter="Value"
+        PropertyName="ProfileLibraryPath"
+      />
+    </ExpandItemNoDups>
+    <ExpandItemNoDups Source="@(ProfileFramework)">
+      <Output
+        TaskParameter="Value"
+        PropertyName="ProfileFrameworkPath"
+      />
+    </ExpandItemNoDups>
+  </Target>
+
+  <Target Name="_CollectFrameworks">
+    <FrameworkBuilder
+      InputFiles="@(ProfileFramework)">
+      <Output
+        TaskParameter="FrameworkList"
+        PropertyName="ProfileFrameworks"
+      />
+    </FrameworkBuilder>
+  </Target>
+
+  <Target Name="_GatherPlatformSDKPaths"
+    Condition="'$(PlatformSDK)'!=''"
+    DependsOnTargets="_CollapsePaths;_CollectFrameworks"/>
+
+  <Target Name="_DebugPlatformSDKTarget" DependsOnTargets="_GatherPlatformSDKPaths">
+    <Message Text="Include = @(ProfileInclude->'%(Identity)')"/>
+    <Message Text="Library = @(ProfileLibrary->'%(Identity)')"/>
+    <Message Text="Frameworks: @(ProfileFramework->'%(Name)')"/>
+    <Message Text="FrameworkRoot = @(ProfileFramework->'%(Identity)')"/>
+    <Message Text="SysRoot: $(Profile_SysRoot)"/>
+    <Message Text="ProfileIncludePath: $(ProfileIncludePath)"/>
+    <Message Text="ProfileLibraryPath: $(ProfileLibraryPath)"/>
+    <Message Text="ProfileFrameworkPath: $(ProfileFrameworkPath)"/>
+    <Message Text="ProfileFrameworks: $(ProfileFrameworks)"/>
+  </Target>
+
+  <Target Name="_DebugProfileTarget">
+    <Message Text="SysRoot: $(Profile_SysRoot)"/>
+  </Target>
+
+
+
+</Project>

@@ -1,0 +1,140 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+         <UsingTask TaskName="StringReplace" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll" Condition="'$(ExternalCall)' != ''"/>
+
+        <!-- 4.0.12-->
+	<Import Project="$(MSBuildExtensionsPath)\ExtensionPack\4.0\MSBuild.ExtensionPack.tasks" Condition="Exists('$(MSBuildExtensionsPath)\ExtensionPack\4.0\MSBuild.ExtensionPack.tasks')" />
+
+        <!-- 4.0.15-->
+	<Import Project="$(MSBuildExtensionsPath)\MSBuildExtensionPack\4.0\MSBuild.ExtensionPack.tasks" Condition="Exists('$(MSBuildExtensionsPath)\MSBuildExtensionPack\4.0\MSBuild.ExtensionPack.tasks')" />
+
+	<PropertyGroup>
+		<DependsOnResolveOutputs/>
+		<DependsOnResolveOutputs Condition="'$(ExternalCall)'==''">ResolveOutputs</DependsOnResolveOutputs>
+	</PropertyGroup>
+
+	<Target Name="Sign" DependsOnTargets="$(DependsOnResolveOutputs)" Condition="'$(DoNotSign)' != '1' and '$(DoNotSign)' != 'true'">
+		<Message Text="Sign file" />
+		<Exec Command="rst input=&quot;$(OUTPUTPATH)&quot;" WorkingDirectory="" StdOutEncoding="windows-1251"/>
+	</Target>
+
+	<Target Name="Zip">
+		<PropertyGroup>
+			<ZipFiles Condition="'$(ZipFiles)'==''">$(OUTPUTPATH)</ZipFiles>
+			<ZipName Condition="'$(ZipName)'==''">$(OUTPUTNAME)</ZipName>
+			<ZipDir  Condition="'$(ZipDir)'==''">$(OUTPUTDIR)</ZipDir>
+			<TmpZipDir>$(ZipDir)zip</TmpZipDir>
+		</PropertyGroup>		
+		<Copy SourceFiles="$(ZipFiles)" DestinationFolder="$(TmpZipDir)"/>
+		<ItemGroup>
+			<_ZipFiles Include="$(TmpZipDir)\*.*"/>  
+		</ItemGroup>
+		<MSBuild.ExtensionPack.Compression.Zip RemoveRoot="$(TmpZipDir)" TaskAction="Create" CompressFiles="@(_ZipFiles)" ZipFileName="$(ZipDir)\$(ZipName).zip"/>
+		<RemoveDir Directories="$(TmpZipDir)" />  
+	</Target>
+
+	<Target Name="CheckPublishDirectory">
+		<Error Text="PublishDirectory is not set" Condition="'$(PublishDirectory)' == ''"/>
+	</Target>
+
+	<Target Name="_Publish" DependsOnTargets="$(DependsOnResolveOutputs);CheckPublishDirectory">
+		<PropertyGroup>
+			<PublishSource Condition="'$(PublishSource)'==''">$(OUTPUTPATH)</PublishSource>
+		</PropertyGroup>
+		<ItemGroup>
+			<PublishSource Include="$(PublishSource)"/>
+		</ItemGroup>
+		<Message Text="Copy files to Publish Directory"/>
+		<Copy SourceFiles="@(PublishSource)" DestinationFolder="$(PublishDirectory)"/>
+	</Target>
+
+	<Target Name="Generate-Changelog" DependsOnTargets="CheckPublishDirectory">
+		<PropertyGroup>
+			<GitLogFilter Condition="'$(FilteredChangeLog)' == 'true'">%%B | sed -n '/^+changelog/,/^-changelog/{/^[+-]changelog/!p}'</GitLogFilter>
+			<GitLogFilter Condition="'$(FilteredChangeLog)' != 'true'">&quot;%25%25ad : %25%25s&quot;</GitLogFilter>
+			<ChangeLogFileName>$(OUTPUTDIR)$(OUTPUTNAME)_Changelog.txt</ChangeLogFileName>
+		</PropertyGroup>
+		<Message Text="Generating changelog file" />
+		<exec Command="cmd /c git log --date=short --format=$(GitLogFilter) > &quot;$(ChangeLogFileName)&quot;"/>
+		<Copy SourceFiles="$(ChangeLogFileName)" DestinationFolder="$(PublishDirectory)"/>
+		<Delete Files="$(ChangeLogFileName)" />
+	</Target>
+
+    <Target Name="_Publish_MTE_1C" DependsOnTargets="SplitSinglePublishDirectoryIntoMTEAnd1C">
+        <ItemGroup>
+            <DCC_ExeOutput Include="$(DCC_ExeOutput)"/>
+        </ItemGroup>
+        <PropertyGroup>
+            <DCC_ExeOutput>%(DCC_ExeOutput.FullPath)</DCC_ExeOutput>
+        </PropertyGroup>
+        <ItemGroup>
+            <PublishDirectory_MTE_Files Include="$(DCC_ExeOutput)\*.mte;$(DCC_ExeOutput)\*Changelog.txt"/>
+            <PublishDirectory_MTE Include="@(PublishDirectory_MTE)">
+                <PublishSource>@(PublishDirectory_MTE_Files)</PublishSource>
+            </PublishDirectory_MTE>
+
+            <PublishDirectory_1C_Files Include="$(DCC_ExeOutput)\*.zip;$(DCC_ExeOutput)\*Changelog.txt"/>
+            <PublishDirectory_1C Include="@(PublishDirectory_1C)">
+                <PublishSource>@(PublishDirectory_1C_Files)</PublishSource>
+            </PublishDirectory_1C>
+        </ItemGroup>
+        <MSBuild Projects="$(MSBuildThisFileFullPath)" Condition="%(PublishDirectory_MTE.Identity) != ''"
+            Properties="ExternalCall=1;PublishDirectory=%(PublishDirectory_MTE.Identity);PublishSource=%(PublishDirectory_MTE.PublishSource)"
+            Targets="_Publish"
+        />
+        <MSBuild Projects="$(MSBuildThisFileFullPath)" Condition="%(PublishDirectory_1C.Identity) != ''"
+            Properties="ExternalCall=1;PublishDirectory=%(PublishDirectory_1C.Identity);PublishSource=%(PublishDirectory_1C.PublishSource)"
+            Targets="_Publish"
+        />
+    </Target>
+
+    <Target Name="SplitSinglePublishDirectoryIntoMTEAnd1C">
+        <!--
+        Split PublishDirectory into two directories: PublishDirectory_MTE and PublishDirectory_1C
+        PublishDirectory must be set as "MTE=<publish_path>;1C=<publish_path>"
+          E.g. /p:PublishDirectory="MTE=path/to/publish/mte;1C=path/to/publish/1c/zips"
+        -->
+
+        <MSBuild.ExtensionPack.Framework.MSBuildHelper TaskAction="StringToItemCol" ItemString="$(PublishDirectory)" Separator=";">
+            <Output TaskParameter="OutputItems" ItemName="PublishDirectoryList"/>
+        </MSBuild.ExtensionPack.Framework.MSBuildHelper>
+
+        <MSBuild.ExtensionPack.Framework.MSBuildHelper TaskAction="FilterItems" InputItems1="@(PublishDirectoryList)" RegexPattern="^MTE=">
+            <Output TaskParameter="OutputItems" ItemName="PublishDirectory_MTE_Temp"/>
+        </MSBuild.ExtensionPack.Framework.MSBuildHelper>
+
+        <StringReplace Input="@(PublishDirectory_MTE_Temp)" Replace="MTE=" With="">
+            <Output TaskParameter="Output" ItemName="PublishDirectory_MTE"/>
+        </StringReplace>
+
+        <MSBuild.ExtensionPack.Framework.MSBuildHelper TaskAction="FilterItems" InputItems1="@(PublishDirectoryList)" RegexPattern="^1C=">
+            <Output TaskParameter="OutputItems" ItemName="PublishDirectory_1C_Temp"/>
+        </MSBuild.ExtensionPack.Framework.MSBuildHelper>
+
+        <StringReplace Input="@(PublishDirectory_1C_Temp)" Replace="1C=" With="">
+            <Output TaskParameter="Output" ItemName="PublishDirectory_1C"/>
+        </StringReplace>
+
+    </Target>
+
+
+    <Target Name="GetTokenFromSinglePublishDirectory" Outputs="@(Token)">
+        <!--
+        Split PublishDirectory into tokens and return specified by TokenName
+        PublishDirectory must be set as "<Token1>=<publish_path>;<Token2>=<publish_path>"
+          E.g. /p:PublishDirectory="SPL=path/to/publish/mte;ZIP=path/to/publish/1c/zips"
+        -->
+
+        <MSBuild.ExtensionPack.Framework.MSBuildHelper TaskAction="StringToItemCol" ItemString="$(PublishDirectory)" Separator=";">
+            <Output TaskParameter="OutputItems" ItemName="PublishDirectoryList"/>
+        </MSBuild.ExtensionPack.Framework.MSBuildHelper>
+<Message Text="@(PublishDirectoryList)"/>
+
+        <MSBuild.ExtensionPack.Framework.MSBuildHelper TaskAction="FilterItems" InputItems1="@(PublishDirectoryList)" RegexPattern="^$(TokenName)=">
+            <Output TaskParameter="OutputItems" ItemName="PublishDirectory_Temp"/>
+        </MSBuild.ExtensionPack.Framework.MSBuildHelper>
+
+        <StringReplace Input="@(PublishDirectory_Temp)" Replace="$(TokenName)=" With="">
+            <Output TaskParameter="Output" ItemName="Token"/>
+        </StringReplace>
+    </Target>
+</Project>

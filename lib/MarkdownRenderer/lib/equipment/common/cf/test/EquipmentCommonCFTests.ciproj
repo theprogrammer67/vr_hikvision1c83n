@@ -1,0 +1,42 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"
+    DefaultTarget="Build">
+    <PropertyGroup>
+        <ProjectName>Equipment Common CF Tests</ProjectName>
+        <DryRun Condition="'$(DryRun)' == 'true'"></DryRun>
+        <Config Condition="'$(Config)' == ''">Release</Config>
+        <DCC_ExeOutput Condition="'$(DCC_ExeOutput)' == ''">bin</DCC_ExeOutput>
+        <FileVersion Condition="'$(FileVersion)' == '' and '$(Version)' != ''">$(Version)</FileVersion>
+
+        <DelphiVersion Condition="$(BDS.Contains('Codegear'))">2007</DelphiVersion>
+        <!-- <DelphiVersion Condition="$(BDS.Contains('\RAD Studio\9'))">XE2</DelphiVersion> -->
+        <DelphiVersion Condition="$(BDS.Contains('\Studio\1'))">10</DelphiVersion>
+
+        <DelphiProject>EquipmentCommonCFTests.D$(DelphiVersion).dproj</DelphiProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <DCC_ExeOutput Include="$(DCC_ExeOutput)" />
+        <PlatformProject Include="$(DelphiProject)"/>
+    </ItemGroup>
+
+    <Target Name="_Build">
+        <PropertyGroup>
+            <Platform Condition="'$(DelphiVersion)' == '2007'">AnyCPU</Platform>
+            <Platform Condition="'$(DelphiVersion)' != '2007'">Win32</Platform>
+        </PropertyGroup>
+        <MSBuild
+            Projects="@(PlatformProject)"
+            Properties="Platform=$(Platform);Config=$(Config);Configuration=$(Config);DCC_ExeOutput=%(DCC_ExeOutput.FullPath);FileVersion=$(FileVersion);KibitzCompile=$(DryRun)"
+            Targets="Build"
+        />
+    </Target>
+
+    <Target Name="Build" DependsOnTargets="_Build"/>
+
+    <Target Name="Run">
+        <Exec Command="%(DCC_ExeOutput.FullPath)\EquipmentCommonCFTests.exe"/>
+    </Target>
+
+    <Target Name="Test" DependsOnTargets="Build;Run"/>
+
+</Project>

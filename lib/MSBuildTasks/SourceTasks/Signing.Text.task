@@ -1,0 +1,63 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <!-- vim: set filetype=msbuild shiftwidth=4 expandtab: -->
+    <Import Project="UsingTask.targets"/>
+    <UsingTask TaskName="_SignText" TaskFactory="CodeTaskFactory" AssemblyFile="$(UsingTaskAssemblyPath)">
+        <ParameterGroup>
+            <Text ParameterType="System.String" Required="true" />
+            <CertificateFileName ParameterType="System.String" Required="true" />
+            <CertificatePassword ParameterType="System.String" Required="false" />
+            <SignatureAlgorithm ParameterType="System.String" Required="true" />
+            <Signature ParameterType="System.String" Output="true" />
+        </ParameterGroup>
+        <Task>
+            <Using Namespace="System.Security.Cryptography"/>
+            <Using Namespace="System.Security.Cryptography.X509Certificates"/>
+            <Code Type="Fragment" Language="cs"><![CDATA[
+                try {
+                    if (!File.Exists(CertificateFileName)) {
+                    Log.LogError("Certificate file {0} not found!", CertificateFileName);
+                        return false;
+                    };
+                    X509Certificate2 certificate;
+                    try {
+                        certificate = new X509Certificate2(CertificateFileName, CertificatePassword);
+                    } catch(Exception ex) {
+                        Log.LogError("Failed to load certificate {0}", CertificateFileName);
+                        Log.LogErrorFromException(ex);
+                        return false;
+                    }
+                    if (!certificate.HasPrivateKey) {
+                        Log.LogError("Certificate {0} does not contain a private key", CertificateFileName);
+                        return false;
+                    }
+                    if (!SignatureAlgorithm.Equals("SHA-256", StringComparison.InvariantCultureIgnoreCase)
+                      && !SignatureAlgorithm.Equals("SHA256", StringComparison.InvariantCultureIgnoreCase)
+                      && !SignatureAlgorithm.Equals("SHA-1", StringComparison.InvariantCultureIgnoreCase)
+                      && !SignatureAlgorithm.Equals("SHA1", StringComparison.InvariantCultureIgnoreCase)) {
+                        Log.LogError("Unsupported signature algorihtm: {0}", SignatureAlgorithm);
+                    }
+
+                    HashAlgorithm LHashAlgorithm = null;
+                    if (SignatureAlgorithm.Equals("SHA-1", StringComparison.InvariantCultureIgnoreCase)
+                      || SignatureAlgorithm.Equals("SHA1", StringComparison.InvariantCultureIgnoreCase)) {
+                        LHashAlgorithm = new SHA1CryptoServiceProvider();
+                    }
+                    if (SignatureAlgorithm.Equals("SHA-256", StringComparison.InvariantCultureIgnoreCase)
+                      || SignatureAlgorithm.Equals("SHA256", StringComparison.InvariantCultureIgnoreCase)) {
+                        LHashAlgorithm = new SHA256CryptoServiceProvider();
+                    }
+                    RSACryptoServiceProvider rsa = certificate.PrivateKey as RSACryptoServiceProvider;
+
+                    Byte[] dataToSign = Encoding.UTF8.GetBytes(Text);
+                    Byte[] signatureAsBytes = rsa.SignData(dataToSign, LHashAlgorithm);
+                    Log.LogMessage("Signature in hex: {0}", BitConverter.ToString(signatureAsBytes).Replace("-", ""));
+                    Signature = Convert.ToBase64String(signatureAsBytes);
+                } catch(Exception ex) {
+                    Log.LogErrorFromException(ex);
+                    return false;
+                }
+                ]]>
+            </Code>
+      </Task>
+  </UsingTask>
+</Project>

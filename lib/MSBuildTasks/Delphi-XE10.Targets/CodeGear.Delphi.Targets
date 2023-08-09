@@ -1,0 +1,1173 @@
+<!--
+===============================================================================================
+
+  CodeGear.Delphi.Targets
+
+  WARNING
+
+  DO NOT MODIFY unless you have made a backup of these files.  Modifying
+  this file unless you have knowledge about MSBuild you could cause problems
+  when loading or building projects in the IDE or building from the
+  command-line.
+
+===============================================================================================
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Make">
+
+  <UsingTask TaskName="DCC" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Delphi.dll"/>
+  <UsingTask TaskName="DependencyCheck" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="BRCC32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="MessageMap" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="WriteLinesToFileEx" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="TrimEnd" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+	
+  <Import Project="$(BDS)\bin\CodeGear.Common.Targets"/>
+
+  <PropertyGroup>
+    <Platform Condition="'$(Platform)'=='AnyCPU' or '$(Platform)'=='x86' or '$(Platform)'=='x64'">Win32</Platform>
+  </PropertyGroup>
+
+  <!--
+  ========================================================================
+               Static Properties
+    Override missing properties from user msbuild file with standard
+    build logic.
+  ========================================================================
+  -->
+
+  <PropertyGroup>
+      <!-- These are normally set by the IDE or come from EnvOptions.proj so these are
+           provided as a fall back when building from the command line. -->
+      <BDSLIB Condition="'$(BDSLIB)'==''">$(BDS)\lib</BDSLIB>
+      <DelphiLibraryPath Condition="'$(DelphiLibraryPath)'==''">$(BDSLIB)\$(PLATFORM)\$(CONFIG)</DelphiLibraryPath>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <!-- use the correct global option depending on compiler type -->
+    <!-- OBJPath is only meaningful for DCC32 -->
+    <__ObjectPath Condition = "'$(DCC_ObjPath)' != ''">$(DCC_ObjPath);$(DelphiLibraryPath)</__ObjectPath>
+    <__ObjectPath Condition = "'$(DCC_ObjPath)' == ''">$(DelphiLibraryPath)</__ObjectPath>
+    <_ObjectPath Condition = " '$(DCC_UnitSearchPath)' != ''">$(DCC_UnitSearchPath);$(__ObjectPath)</_ObjectPath>
+    <_ObjectPath Condition = " '$(DCC_UnitSearchPath)' == ''">$(__ObjectPath)</_ObjectPath>
+    <!-- default MakeModifiedUnits to true -->
+    <!-- use the global Output path only if the project does not define one  -->
+    <DCC_BplOutput Condition = " '$(DCC_BplOutput)' == ''">$(DelphiDLLOutputPath)</DCC_BplOutput>
+    <DCC_DcpOutput Condition = " '$(DCC_DcpOutput)' == ''">$(DelphiDCPOutput)</DCC_DcpOutput>
+    <DCC_ObjOutput Condition = " '$(DCC_CBuilderOutput)'=='All' And '$(DCC_ObjOutput)' == ''">$(DCC_DcpOutput)</DCC_ObjOutput>
+    <DCC_ObjOutput Condition = " '$(DCC_ObjOutput)' == ''">$(DCC_DcuOutput)</DCC_ObjOutput>
+    <DCC_BpiOutput Condition = " '$(DCC_BpiOutput)' == ''">$(DCC_DcpOutput)</DCC_BpiOutput>
+    <DCC_HppOutput Condition = " '$(DCC_HppOutput)' == ''">$(DelphiHPPOutputPath)</DCC_HppOutput>
+
+    <!-- ensure trailing slashes for directory properties -->
+    <DCC_BplOutput Condition=" '$(DCC_BplOutput)'!='' and !HasTrailingSlash('$(DCC_BplOutput)') ">$(DCC_BplOutput)\</DCC_BplOutput>
+    <DCC_DcuOutput Condition=" '$(DCC_DcuOutput)'!='' and !HasTrailingSlash('$(DCC_DcuOutput)') ">$(DCC_DcuOutput)\</DCC_DcuOutput>
+    <DCC_DcpOutput Condition=" '$(DCC_DcpOutput)'!='' and !HasTrailingSlash('$(DCC_DcpOutput)') ">$(DCC_DcpOutput)\</DCC_DcpOutput>
+    <DCC_HppOutput Condition=" '$(DCC_HppOutput)'!='' and !HasTrailingSlash('$(DCC_HppOutput)') ">$(DCC_HppOutput)\</DCC_HppOutput>
+    <DCC_ObjOutput Condition=" '$(DCC_ObjOutput)'!='' and !HasTrailingSlash('$(DCC_ObjOutput)') ">$(DCC_ObjOutput)\</DCC_ObjOutput>
+    <DCC_BpiOutput Condition=" '$(DCC_BpiOutput)'!='' and !HasTrailingSlash('$(DCC_BpiOutput)') ">$(DCC_BpiOutput)\</DCC_BpiOutput>
+
+    <DCC_ResourceOutput Condition = " '$(DCC_ResourceOutput)' == ''">$(DelphiDCPOutput)</DCC_ResourceOutput>
+    <DCC_PlatformTarget Condition="'$(Platform)'!=''">$(Platform)</DCC_PlatformTarget>
+
+    <LANGDIR Condition="'$(LANGDIR)' == 'EN'"> '' </LANGDIR>
+    <DCC_TranslatedLibraryPath Condition = "'$(LANGDIR)' != ''">$(DelphiTranslatedLibraryPath)</DCC_TranslatedLibraryPath>
+    <DCC_TranslatedDebugLibraryPath Condition = "'$(LANGDIR)' != ''">$(DelphiTranslatedDebugLibraryPath)</DCC_TranslatedDebugLibraryPath>
+    <DCC_TranslatedResourcePath Condition = "'$(LANGDIR)' != ''">$(DelphiTranslatedResourcePath)</DCC_TranslatedResourcePath>
+
+    <!-- Build event properties settable in the IDE -->
+    <ProjectName>$(MSBuildProjectName)</ProjectName>
+    <ProjectFilename>$(MSBuildProjectFile)</ProjectFilename>
+    <ProjectExt>$(MSBuildProjectExtension)</ProjectExt>
+    <ProjectDir>$(MSBuildProjectDirectory)</ProjectDir>
+    <ProjectPath>$(MSBuildProjectFullPath)</ProjectPath>
+
+    <InputPath>@(InputFile->'%(FullPath)')</InputPath>
+    <InputDir>@(InputFile->'%(RootDir)%(Directory)')</InputDir>
+    <InputName>@(InputFile->'%(Filename)')</InputName>
+    <InputExt>@(InputFile->'%(Extension)')</InputExt>
+    <InputFilename>@(InputFile->'%(Filename)%(Extension)')</InputFilename>
+
+    <OutputExt Condition="'$(OutputExt)'=='' And '$(GenDll)'=='true'">$(DllExt)</OutputExt>
+    <OutputExt Condition="'$(GenDll)'=='true' And '$(GenPackage)'=='true'">$(BplExt)</OutputExt>
+    <OutputExt Condition="'$(OutputExt)'==''">$(ExeExt)</OutputExt>
+    <OutputExt Condition="'$(OutputExt)'!=''">.$(OutputExt)</OutputExt>
+    <OutputName Condition="'$(OutputName)'==''">$(MSBuildProjectName)</OutputName>
+    <OutputDir Condition="'$(GenPackage)'=='true' And '$(DCC_BplOutput)'==''">$(DelphiDLLOutputPath)</OutputDir>
+    <OutputDir Condition="'$(GenPackage)'=='true' And '$(DCC_BplOutput)'!=''">$(DCC_BplOutput)</OutputDir>
+    <OutputDir Condition="'$(GenPackage)'!='true'">$(DCC_ExeOutput)</OutputDir>
+    <OutputDir Condition="'$(OutputDir)'!='' And !HasTrailingSlash('$(OutputDir)')">$(OutputDir)\</OutputDir>
+    <DllVersion Condition="'$(DllVersion)'!=''">.$(DllVersion)</DllVersion>
+    <!-- Delphi compiler prepends "lib" to dylib output filename -->
+    <DllPrefix Condition="'$(DllPrefix)'=='' And '$(AppType)'=='Library'">$(DllPlatformPrefix)</DllPrefix>
+    <DllPrefix Condition="'$(DllPrefix)'=='' And '$(AppType)'=='Package'">$(BplPlatformPrefix)</DllPrefix>
+    <OutputFilename Condition="('$(Platform)'=='Linux32' Or '$(Platform)'=='Android')">$(DllPrefix)$(OutputName)$(DllSuffix)$(OutputExt)$(DllVersion)</OutputFilename>
+ 	<OutputFilename Condition="('$(Platform)'!='Linux32' And '$(Platform)'!='Android')">$(DllPrefix)$(OutputName)$(DllSuffix)$(DllVersion)$(OutputExt)</OutputFilename>
+    <FinalOutput>$(OutputDir)$(OutputFilename)</FinalOutput>
+
+    <OutputPath>@(OutputFile->'%(FullPath)')</OutputPath>
+
+    <!-- cmds file <project>.cmds -->
+    <CmdsFileOutput>$(OutputDir)$(MSBuildProjectName).cmds</CmdsFileOutput>
+	
+    <!-- debug symbol file <project>.rsm -->
+ 	<DebugSymbolFile Condition="('$(Platform)'!='WIN32') And ('$(Platform)'!='WIN64') And ('$(Platform)'!='Android')">$(OutputFilename).rsm</DebugSymbolFile>
+ 	<DebugSymbolFile Condition="('$(Platform)'=='WIN64') And ('$(AppType)'=='Package')">$(DllPrefix)$(OutputName)$(DllSuffix)$(DllVersion).rsm</DebugSymbolFile>
+    <DebugSymbolFile Condition="('$(Platform)'=='WIN64') And ('$(AppType)'!='Package')">$(MSBuildProjectName).rsm</DebugSymbolFile>
+	
+	<ObjectLinkerFile Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='iOSDevice64'">@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).lnk')</ObjectLinkerFile>
+    <ObjectLinkerFile Condition="'$(Platform)'=='Android'">@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).lnk')</ObjectLinkerFile>
+
+    <DcpFilename Condition="'$(GenPackage)'=='true'">$(DelphiDCPOutput)</DcpFilename>
+    <DcpFilename Condition="'$(GenDll)'=='true'">$(DelphiDCPOutput)</DcpFilename>
+    <DcpFilename Condition="'$(DcpFilename)'!='' And !HasTrailingSlash('$(DcpFilename)')">$(DcpFilename)\</DcpFilename>
+    <DcpFilename Condition="'$(DcpFilename)'!=''">$(DcpFilename)$(MSBuildProjectName).dcp</DcpFilename>
+
+    <UnitSearchPath Condition="'$(DCC_UnitSearchPath)' != ''">$(DCC_UnitSearchPath);$(DelphiLibraryPath)</UnitSearchPath>
+    <UnitSearchPath Condition="'$(DCC_UnitSearchPath)' == ''">$(DelphiLibraryPath)</UnitSearchPath>
+
+    <UnitSearchPath Condition="'$(DCC_TranslatedLibraryPath)' != ''">$(DCC_TranslatedLibraryPath);$(UnitSearchPath)</UnitSearchPath>
+    <UnitSearchPath Condition="'$(DCC_DebugDCUs)'=='true' And '$(DelphiDebugDCUPath)'!=''">$(DelphiDebugDCUPath);$(UnitSearchPath)</UnitSearchPath>
+    <UnitSearchPath Condition="'$(DCC_DebugDCUs)'=='true' And '$(DCC_TranslatedDebugLibraryPath)' != ''">$(DCC_TranslatedDebugLibraryPath);$(UnitSearchPath)</UnitSearchPath>
+
+    <___ResourcePath Condition="'$(DCC_ResourcePath)' != ''">$(DCC_ResourcePath);$(DelphiLibraryPath)</___ResourcePath>
+    <___ResourcePath Condition="'$(DCC_ResourcePath)' == ''">$(DelphiLibraryPath)</___ResourcePath>
+    <__ResourcePath Condition="'$(DCC_UnitSearchPath)' != ''">$(DCC_UnitSearchPath);$(___ResourcePath)</__ResourcePath>
+    <__ResourcePath Condition="'$(DCC_UnitSearchPath)' == ''">$(___ResourcePath)</__ResourcePath>
+    <ResourcePath Condition="'$(BRCC_OutputDir)' != ''">$(BRCC_OutputDir);$(__ResourcePath)</ResourcePath>
+    <ResourcePath Condition="'$(BRCC_OutputDir)' == ''">$(__ResourcePath)</ResourcePath>
+    <ResourcePath Condition="'$(DCC_TranslatedResourcePath)' != ''">$(DCC_TranslatedResourcePath);$(ResourcePath)</ResourcePath>
+
+    <NameSpace Condition="'DelphiNamespaceSearchPath'!=''">$(NameSpace);$(DelphiNamespaceSearchPath)</NameSpace>
+
+    <IncludePath>$(UnitSearchPath)</IncludePath>
+    <Defines>$(DCC_Define)</Defines>
+
+    <_ProjectFiles>@(DelphiCompile)</_ProjectFiles>
+
+    <GENTLB_OutputDir Condition="'$(GENTLB_OutputDir)'!='' And !HasTrailingSlash('$(GENTLB_OutputDir)')">$(GENTLB_OutputDir)\</GENTLB_OutputDir>
+    <GENTLB_OutputName Condition="'$(GENTLB_OutputName)'==''">$(MSBuildProjectName).tlb</GENTLB_OutputName>
+    <GENTLB_GenPasBindings>false</GENTLB_GenPasBindings>
+    <_ResolveGENTLBBindingsTarget>
+      _ResolveGENTLBBindings;
+    </_ResolveGENTLBBindingsTarget>
+
+    <!-- Always produce remote debug symbols when debugging is enabled for non-Win32 platforms -->
+    <DCC_RemoteDebug Condition="('$(DCC_DebugInfoInExe)'=='true' Or '$(DCC_DebugInformation)'=='1' Or '$(DCC_DebugInformation)'=='') And '$(DCC_PlatformTarget)'!='Win32'">true</DCC_RemoteDebug>
+
+    <!-- Clear unit cache issue Workaround -->
+    <DCC_ForceExecute Condition="'$(DCC_ForceExecute)'==''">$(DCC_UseMSBuildExternally)</DCC_ForceExecute>
+  </PropertyGroup>
+
+
+  <!--
+  ========================================================================
+    Property group for OSX platform
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='OSX32'">
+    <DCC_SysLibRoot Condition="'$(DCC_SysLibRoot)'!=''">$(DCC_SysLibRoot);$(Profile_sysroot)</DCC_SysLibRoot>
+    <DCC_SysLibRoot Condition="'$(DCC_SysLibRoot)'==''">$(Profile_sysroot)</DCC_SysLibRoot>
+  </PropertyGroup>
+
+
+  <!--
+  ========================================================================
+    Property group for iOSSimulator platform
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='$(ciOSSimulatorPlatform)'">
+    <DCC_iOSMinimumVersion Condition="'$(DCC_iOSMinimumVersion)'==''">7.0</DCC_iOSMinimumVersion>
+    <DCC_AdditionalSwitches Condition="'$(DCC_AdditionalSwitches)'!=''">$(DCC_AdditionalSwitches) --sdk-version:$(Profile_version)</DCC_AdditionalSwitches>
+    <DCC_AdditionalSwitches Condition="'$(DCC_AdditionalSwitches)'==''">--sdk-version:$(Profile_version)</DCC_AdditionalSwitches>
+  </PropertyGroup>
+
+
+  <!--
+  ========================================================================
+    Property group for iOS Device platforms
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+    <DCC_iOSMinimumVersion Condition="'$(DCC_iOSMinimumVersion)'==''">7.0</DCC_iOSMinimumVersion>
+    <RC_MinimumIOSVersion>$(DCC_iOSMinimumVersion)</RC_MinimumIOSVersion>
+
+    <DCC_SysLibRoot Condition="'$(DCC_SysLibRoot)'!=''">$(DCC_SysLibRoot);$(Profile_sysroot)</DCC_SysLibRoot>
+    <DCC_SysLibRoot Condition="'$(DCC_SysLibRoot)'==''">$(Profile_sysroot)</DCC_SysLibRoot>
+    <DCC_FrameworkPath  Condition="'$(DCC_FrameworkPath)'!=''">$(DCC_FrameworkPath);$(Profile_Frameworkroot)</DCC_FrameworkPath>
+    <DCC_FrameworkPath Condition="'$(DCC_FrameworkPath)'==''">$(Profile_Frameworkroot)</DCC_FrameworkPath>
+
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'!='' And '$(Platform)'=='$(ciOSDevice32Platform)'">$(DCC_LinkerOptions) -arch armv7</DCC_LinkerOptions>
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'=='' And '$(Platform)'=='$(ciOSDevice32Platform)'">-arch armv7</DCC_LinkerOptions>
+
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'!='' And '$(Platform)'=='$(ciOSDevice64Platform)'">$(DCC_LinkerOptions) -arch arm64</DCC_LinkerOptions>
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'=='' And '$(Platform)'=='$(ciOSDevice64Platform)'">-arch arm64</DCC_LinkerOptions>
+  </PropertyGroup>
+
+  <!--
+  ========================================================================
+    Property group for Android platform
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='Android'">
+    <DCC_DebugInfoInExe Condition="'$(Config)'=='Debug'">true</DCC_DebugInfoInExe>
+    <!-- NDK Library path. This information comes from platform sdk file -->
+    <DCC_LibraryPath>$(DelphiNDKLibraryPath)</DCC_LibraryPath>
+	<DCC_LinkerOptions Condition="'$(LibraryPath)'!=''">$(DCC_LinkerOptions) -L "$(LibraryPath)"</DCC_LinkerOptions>
+    <!-- Android NDK External linker -->
+    <DCC_LinkerExecutable>$(NDKArmLinuxAndroidFile)</DCC_LinkerExecutable>
+  </PropertyGroup>
+
+  <!--
+  ========================================================================
+               _GenerateCmdsFile
+    Generate the .cmds file to pass to the compiler to avoid problems
+    when the command line is too long and option "Use MSBuild externally
+    to compile" is enabled.
+
+  ========================================================================
+  -->
+
+  <Target Name="__RemoveLatestBackSlashFromPaths" Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')">
+
+    <ItemGroup>
+        <TmpIncludePaths Include="$(IncludePath)"/>
+    </ItemGroup>
+    <TrimEnd
+        Text="%(TmpIncludePaths.Identity)"
+        Character="\">
+
+        <Output TaskParameter="Output" ItemName="SearchPath_Dirs" />
+    </TrimEnd>
+
+    <ItemGroup>
+        <TmpObjPaths Include="$(_ObjectPath)"/>
+    </ItemGroup>
+    <TrimEnd
+        Text="%(TmpObjPaths.Identity)"
+        Character="\">
+
+        <Output TaskParameter="Output" ItemName="ObjPath_Dirs" />
+    </TrimEnd>
+
+    <ItemGroup>
+        <TmpResPaths Include="$(ResourcePath)"/>
+    </ItemGroup>
+
+    <TrimEnd
+        Text="%(TmpResPaths.Identity)"
+        Character="\">
+
+        <Output TaskParameter="Output" ItemName="ResourcePath_Dirs" />
+    </TrimEnd>
+
+    <ItemGroup>
+        <TmpUnitSearchPath Include="$(UnitSearchPath)"/>
+    </ItemGroup>
+    <TrimEnd
+        Text="%(TmpUnitSearchPath.Identity)"
+        Character="\">
+
+        <Output TaskParameter="Output" ItemName="UnitSearchPath_Dirs" />
+    </TrimEnd>
+  </Target>
+
+  <Target Name="__GenerateSearchPathFile" Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')">
+    <WriteLinesToFileEx
+      File="$(CmdsFileOutput)"
+      Lines="@(SearchPath_Dirs)"
+      lineEnding="1"
+      RemoveCR="true"
+      Escaped="false"
+      RequiresQuotes="true"
+      Overwrite="true"
+      LinePrefix="-I"
+      LineSuffix=""/>
+  </Target>
+  
+  <Target Name="__GenerateObjPathFile">
+    <PropertyGroup>
+        <Overwrite Condition="'$(IncludePath)'!=''">false</Overwrite>
+        <Overwrite Condition="'$(IncludePath)'==''">true</Overwrite>
+    </PropertyGroup>
+
+    <WriteLinesToFileEx
+      File="$(CmdsFileOutput)"
+      Lines="@(ObjPath_Dirs)"
+      lineEnding="1"
+      RemoveCR="true"
+      Escaped="false"
+      RequiresQuotes="true"
+      Overwrite="$(Overwrite)"
+      LinePrefix="-O"
+      LineSuffix=""/>
+  </Target>
+
+  <Target Name="__GenerateResourcePathFile">
+    <PropertyGroup>
+        <Overwrite Condition="('$(IncludePath)'!='') Or ('$(_ObjectPath)'!='')">false</Overwrite>
+        <Overwrite Condition="('$(IncludePath)'=='') And ('$(_ObjectPath)'=='')">true</Overwrite>
+    </PropertyGroup>
+
+    <WriteLinesToFileEx
+      File="$(CmdsFileOutput)"
+      Lines="@(ResourcePath_Dirs)"
+      lineEnding="1"
+      RemoveCR="true"
+      Escaped="false"
+      RequiresQuotes="true"
+      Overwrite="$(Overwrite)"
+      LinePrefix="-R"
+      LineSuffix=""/>
+  </Target>
+  
+  <Target Name="__GenerateUnitSearchPathFile">
+    <PropertyGroup>
+        <Overwrite Condition="('$(IncludePath)'!='') Or ('$(_ObjectPath)'!='') Or ('$(ResourcePath)'!='')">false</Overwrite>
+        <Overwrite Condition="('$(IncludePath)'=='') And ('$(_ObjectPath)'=='') And ('$(ResourcePath)'=='')">true</Overwrite>
+    </PropertyGroup>
+
+    <WriteLinesToFileEx
+      File="$(CmdsFileOutput)"
+      Lines="@(UnitSearchPath_Dirs)"
+      lineEnding="1"
+      RemoveCR="true"
+      Escaped="false"
+      RequiresQuotes="true"
+      Overwrite="$(Overwrite)"
+      LinePrefix="-U"
+      LineSuffix=""/>
+  </Target>
+  
+  <PropertyGroup>
+	<_GenerateCmdsFile Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')">
+        __RemoveLatestBackSlashFromPaths;
+		__GenerateSearchPathFile;
+		__GenerateObjPathFile;
+		__GenerateResourcePathFile;
+		__GenerateUnitSearchPathFile;
+	</_GenerateCmdsFile>
+  </PropertyGroup>
+
+  <!--
+  ========================================================================
+               _PasCoreCompile
+    Perform final dependency checking on produces resource files
+    and source, then call the compiler.
+
+  ========================================================================
+  -->
+
+  <Target Name="_PasCoreCompile" Condition=" '@(_ProjectFiles)'!='' Or '$(_KibitzTask)'!=''" DependsOnTargets="$(_GenerateCmdsFile)">
+	<PropertyGroup>
+		<IncPath Condition="('$(DCC_ForceExecute)'=='false') Or ('$(DCC_ForceExecute)'=='')">$(IncludePath)</IncPath>
+		<IncPath Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')"></IncPath>
+		
+		<ObjPath Condition="('$(DCC_ForceExecute)'=='false') Or ('$(DCC_ForceExecute)'=='')">$(_ObjectPath)</ObjPath>
+		<ObjPath Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')"></ObjPath>
+		
+		<ResPath Condition="('$(DCC_ForceExecute)'=='false') Or ('$(DCC_ForceExecute)'=='')">$(ResourcePath)</ResPath>
+		<ResPath Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')"></ResPath>
+		
+		<UnitSrchPath Condition="('$(DCC_ForceExecute)'=='false') Or ('$(DCC_ForceExecute)'=='')">$(UnitSearchPath)</UnitSrchPath>
+		<UnitSrchPath Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')"></UnitSrchPath>
+		
+		<CmdsFilePath Condition="('$(DCC_ForceExecute)'=='false') Or ('$(DCC_ForceExecute)'=='')"></CmdsFilePath>
+		<CmdsFilePath Condition="('$(DCC_ForceExecute)'!='false') And ('$(DCC_ForceExecute)'!='')">$(CmdsFileOutput)</CmdsFilePath>
+	</PropertyGroup>
+
+    <DCC DelphiCompile="$(_ProjectFiles)"
+      PlatformTarget="$(DCC_PlatformTarget)"
+      ExeOutput="$(DCC_ExeOutput)"
+      BplOutput="$(DCC_BplOutput)"
+      DcuOutput="$(DCC_DcuOutput)"
+      DcpOutput="$(DCC_DcpOutput)"
+      HppOutput="$(DCC_HppOutput)"
+      ObjOutput="$(DCC_ObjOutput)"
+      BpiOutput="$(DCC_BpiOutput)"
+      FileReference="@(_InputFiles)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      OutputExt="$(OutputExt)"
+
+      ToolExe="$(DCC_ToolExe)"
+      ForceExecute="$(DCC_ForceExecute)"
+      IgnoreCommandLine="$(DCC_IgnoreCommandLine)"
+      KibitzTask="$(_KibitzTask)"
+      CompileForBCB="false"
+      SyntaxCheck="$(SyntaxCheck)"
+      UnitSearchPath="$(UnitSrchPath)"
+      ResourcePath="$(ResPath)"
+      IncludePath="$(IncPath)" 
+      CmdsFilename="$(CmdsFilePath)"
+      ObjPath="$(ObjPath)"
+
+      UnitAlias="$(UnitAliases)"
+      ConsoleTarget="$(DCC_ConsoleTarget)"
+      Define="$(DCC_Define)"
+      FindError="$(DCC_FindError)"
+      MapFile="$(DCC_MapFile)"
+      MapFileARM="$(DCC_MapFileARM)"
+      Hints="$(DCC_Hints)"
+      CBuilderOutput="$(DCC_CBuilderOutput)"
+      HppOutputARM="$(DCC_HppOutputARM)"
+      BaseAddress="$(DCC_BaseAddress)"
+      UsePackage="$(_UsePackage)"
+      MakeModifiedUnits="$(DCC_MakeModifiedUnits)"
+      BuildAllUnits="$(DCC_BuildAllUnits)"
+      NameSpace="$(NameSpace)"
+      OldDosFileNames="$(DCC_OldDosFileNames)"
+      GeneratePICCode="$(DCC_GeneratePICCode)"
+      LegacyIFEND="$(DCC_LegacyIFEND)"
+      Quiet="true"
+      DebugInfoInExe="$(DCC_DebugInfoInExe)"
+      DebugInfoInTds="$(DCC_DebugInfoInTds)"
+      RemoteDebug="$(DCC_RemoteDebug)"
+      OutputNeverBuildDcps="$(DCC_OutputNeverBuildDcps)"
+      NoConfig="true"
+      OutputDRCFile="$(DCC_OutputDRCFile)"
+      OutputDependencies="$(DCC_OutputDependencies)"
+      OutputXMLDocumentation="$(DCC_OutputXMLDocumentation)"
+      XmlOutput="$(DCC_XMLOutput)"
+      DefaultNamespace="$(DCC_DefaultNamespace)"
+      Warnings="$(DCC_Warnings)"
+
+      Alignment="$(DCC_Alignment)"
+      MinimumEnumSize="$(DCC_MinimumEnumSize)"
+      FullBooleanEvaluations="$(DCC_FullBooleanEvaluations)"
+      AssertionsAtRuntime="$(DCC_AssertionsAtRuntime)"
+      DebugInformation="$(DCC_DebugInformation)"
+      ImportedDataReferences="$(DCC_ImportedDataReferences)"
+      LongStrings="$(DCC_LongStrings)"
+      IOChecking="$(DCC_IOChecking)"
+      WriteableConstants="$(DCC_WriteableConstants)"
+      LocalDebugSymbols="$(DCC_LocalDebugSymbols)"
+      RunTimeTypeInfo="$(DCC_RunTimeTypeInfo)"
+      Optimize="$(DCC_Optimize)"
+      OpenStringParams="$(DCC_OpenStringParams)"
+      IntegerOverflowCheck="$(DCC_IntegerOverflowCheck)"
+      RangeChecking="$(DCC_RangeChecking)"
+      TypedAtParameter="$(DCC_TypedAtParameter)"
+      PentiumSafeDivide="$(DCC_PentiumSafeDivide)"
+      StrictVarStrings="$(DCC_StrictVarStrings)"
+      GenerateStackFrames="$(DCC_GenerateStackFrames)"
+      ExtendedSyntax="$(DCC_ExtendedSyntax)"
+      SymbolReferenceInfo="$(DCC_SymbolReferenceInfo)"
+      Inlining="$(DCC_Inlining)"
+      StringChecks="$(DCC_StringChecks)"
+      PEFlags="$(DCC_PEFlags)"
+      PEOptFlags="$(DCC_PEOptFlags)"
+      PEOSVersion="$(DCC_PEOSVersion)"
+      PESubSysVersion="$(DCC_PESubSysVersion)"
+      PEUserVersion="$(DCC_PEUserVersion)"
+
+      StackSize="$(DCC_StackSize)"
+      MinStackSize="$(DCC_MinStackSize)"
+      MaxStackSize="$(DCC_MaxStackSize)"
+      ImageBase="$(DCC_ImageBase)"
+      Description="$(DCC_Description)"
+
+      DelaySign="$(DCC_DelaySign)"
+      KeyFile="$(DCC_KeyFile)"
+      KeyContainer="$(DCC_KetContainer)"
+      CodePage="$(DCC_CodePage)"
+
+      SYMBOL_DEPRECATED="$(DCC_SYMBOL_DEPRECATED)"
+      SYMBOL_LIBRARY="$(DCC_SYMBOL_LIBRARY)"
+      SYMBOL_PLATFORM="$(DCC_SYMBOL_PLATFORM)"
+      SYMBOL_EXPERIMENTAL="$(DCC_SYMBOL_EXPERIMENTAL)"
+      UNIT_LIBRARY="$(DCC_UNIT_LIBRARY)"
+      UNIT_PLATFORM="$(DCC_UNIT_PLATFORM)"
+      UNIT_DEPRECATED="$(DCC_UNIT_DEPRECATED)"
+      UNIT_EXPERIMENTAL="$(DCC_UNIT_EXPERIMENTAL)"
+      HRESULT_COMPAT="$(DCC_HRESULT_COMPAT)"
+      HIDING_MEMBER="$(DCC_HIDING_MEMBER)"
+      HIDDEN_VIRTUAL="$(DCC_HIDDEN_VIRTUAL)"
+      GARBAGE="$(DCC_GARBAGE)"
+      BOUNDS_ERROR="$(DCC_BOUNDS_ERROR)"
+      ZERO_NIL_COMPAT="$(DCC_ZERO_NIL_COMPAT)"
+      STRING_CONST_TRUNCED="$(DCC_STRING_CONST_TRUNCED)"
+      FOR_LOOP_VAR_VARPAR="$(DCC_FOR_LOOP_VAR_VARPAR)"
+      TYPED_CONST_VARPAR="$(DCC_TYPED_CONST_VARPAR)"
+      ASG_TO_TYPED_CONST="$(DCC_ASG_TO_TYPED_CONST)"
+      CASE_LABEL_RANGE="$(DCC_CASE_LABEL_RANGE)"
+      FOR_VARIABLE="$(DCC_FOR_VARIABLE)"
+      CONSTRUCTING_ABSTRACT="$(DCC_CONSTRUCTING_ABSTRACT)"
+      COMPARISON_FALSE="$(DCC_COMPARISON_FALSE)"
+      COMPARISON_TRUE="$(DCC_COMPARISON_TRUE)"
+      COMPARING_SIGNED_UNSIGNED="$(DCC_COMPARING_SIGNED_UNSIGNED)"
+      COMBINING_SIGNED_UNSIGNED="$(DCC_COMBINING_SIGNED_UNSIGNED)"
+      UNSUPPORTED_CONSTRUCT="$(DCC_UNSUPPORTED_CONSTRUCT)"
+      FILE_OPEN="$(DCC_FILE_OPEN)"
+      FILE_OPEN_UNITSRC="$(DCC_FILE_OPEN_UNITSRC)"
+      BAD_GLOBAL_SYMBOL="$(DCC_BAD_GLOBAL_SYMBOL)"
+      DUPLICATE_CTOR_DTOR="$(DCC_DUPLICATE_CTOR_DTOR)"
+      INVALID_DIRECTIVE="$(DCC_INVALID_DIRECTIVE)"
+      PACKAGE_NO_LINK="$(DCC_PACKAGE_NO_LINK)"
+      PACKAGED_THREADVAR="$(DCC_PACKAGED_THREADVAR)"
+      IMPLICIT_IMPORT="$(DCC_IMPLICIT_IMPORT)"
+      HPPEMIT_IGNORED="$(DCC_HPPEMIT_IGNORED)"
+      NO_RETVAL="$(DCC_NO_RETVAL)"
+      USE_BEFORE_DEF="$(DCC_USE_BEFORE_DEF)"
+      FOR_LOOP_VAR_UNDEF="$(DCC_FOR_LOOP_VAR_UNDEF)"
+      UNIT_NAME_MISMATCH="$(DCC_UNIT_NAME_MISMATCH)"
+      NO_CFG_FILE_FOUND="$(DCC_NO_CFG_FILE_FOUND)"
+      IMPLICIT_VARIANTS="$(DCC_IMPLICIT_VARIANTS)"
+      UNICODE_TO_LOCALE="$(DCC_UNICODE_TO_LOCALE)"
+      LOCALE_TO_UNICODE="$(DCC_LOCALE_TO_UNICODE)"
+      IMAGEBASE_MULTIPLE="$(DCC_IMAGEBASE_MULTIPLE)"
+      SUSPICIOUS_TYPECAST="$(DCC_SUSPICIOUS_TYPECAST)"
+      PRIVATE_PROPACCESSOR="$(DCC_PRIVATE_PROPACCESSOR)"
+      UNSAFE_TYPE="$(DCC_UNSAFE_TYPE)"
+      UNSAFE_CODE="$(DCC_UNSAFE_CODE)"
+      UNSAFE_CAST="$(DCC_UNSAFE_CAST)"
+      OPTION_TRUNCATED="$(DCC_OPTION_TRUNCATED)"
+      WIDECHAR_REDUCED="$(DCC_WIDECHAR_REDUCED)"
+      DUPLICATES_IGNORED="$(DCC_DUPLICATES_IGNORED)"
+      UNIT_INIT_SEQ="$(DCC_UNIT_INIT_SEQ)"
+      LOCAL_PINVOKE="$(DCC_LOCAL_PINVOKE)"
+      MESSAGE_DIRECTIVE="$(DCC_MESSAGE_DIRECTIVE)"
+      IMPLICIT_STRING_CAST="$(DCC_IMPLICIT_STRING_CAST)"
+      IMPLICIT_STRING_CAST_LOSS="$(DCC_IMPLICIT_STRING_CAST_LOSS)"
+      EXPLICIT_STRING_CAST="$(DCC_EXPLICIT_STRING_CAST)"
+      EXPLICIT_STRING_CAST_LOSS="$(DCC_EXPLICIT_STRING_CAST_LOSS)"
+      CVT_WCHAR_TO_ACHAR="$(DCC_CVT_WCHAR_TO_ACHAR)"
+      CVT_NARROWING_STRING_LOST="$(DCC_CVT_NARROWING_STRING_LOST)"
+      CVT_WIDENING_STRING_LOST="$(DCC_WIDENING_STRING_LOST)"
+      CVT_ACHAR_TO_WCHAR="$(DCC_CVT_ACHAR_TO_WCHAR)"
+      TYPEINFO_IMPLICITLY_ADDED="$(DCC_TYPEINFO_IMPLICITLY_ADDED)"
+      XML_WHITESPACE_NOT_ALLOWED="$(DCC_XML_WHITESPACE_NOT_ALLOWED)"
+      XML_UNKNOWN_ENTITY="$(DCC_XML_UNKNOWN_ENTITY)"
+      XML_INVALID_NAME_START="$(DCC_XML_INVALID_NAME_START)"
+      XML_INVALID_NAME="$(DCC_XML_INVALID_NAME)"
+      XML_EXPECTED_CHARACTER="$(DCC_XML_EXPECTED_CHARACTER)"
+      XML_CREF_NO_RESOLVE="$(DCC_XML_CREF_NO_RESOLVE)"
+      XML_NO_PARM="$(DCC_XML_NO_PARM)"
+      XML_NO_MATCHING_PARM="$(DCC_XML_NO_MATCHING_PARM)"
+      IMMUTABLE_STRINGS="$(DCC_IMMUTABLE_STRINGS)"
+
+      SysLibRoot="$(DCC_SysLibRoot)"
+      FrameworkPath="$(DCC_FrameworkPath)"
+      iOSMinimumVersion="$(DCC_iOSMinimumVersion)"
+      LinkerOptions="$(DCC_LinkerOptions)"
+      LibraryPath="$(DCC_LibraryPath)"
+      LinkerExecutable="$(DCC_LinkerExecutable)"
+      AdditionalSwitches="$(DCC_AdditionalSwitches)"
+    />
+
+  </Target>
+
+  <!--
+  ========================================================================
+               CoreBuild
+    Calls build events in order to prepare and clean up after each
+    build.
+  ========================================================================
+  -->
+
+  <PropertyGroup>
+    <BuildDependsOn>
+      SetBuildOptions;
+      CoreBuild;
+      AutoIncBuildNumber;
+    </BuildDependsOn>
+
+    <MakeDependsOn>
+      SetMakeOptions;
+      CoreBuild;
+    </MakeDependsOn>
+
+    <CoreBuildDependsOn>
+      _CheckBuildEnvironment;
+      _CheckPlatformVariable;
+      _CheckPlatformSDK;
+      CreateDirectories;
+      ResolveFiles;
+      BuildClassesDex;
+      BuildVersionResource;
+      BuildAndroidServiceJarFile;
+      BuildInfoPlist;
+      BuildEntitlementList;
+      BuildAndroidManifestList;
+      ResourceBuild;
+      $(_PreCompileTargets);
+      PreBuildEvent;
+      _PreOutputTimeStamp;
+      _RunUserTools;
+      RidlCompile;
+      _PasCoreCompile;
+      _PostOutputTimeStamp;
+      PostBuildEvent;
+      $(_PostCompileTargets);
+	  _DeleteLnkFile;
+      GeniOSDevice32Outputs
+    </CoreBuildDependsOn>
+
+    <_EvaluatePropertyDependsOnTargets>
+      ResolveFiles;
+    </_EvaluatePropertyDependsOnTargets>
+    <_EvaluateItemDependsOnTargets>
+      ResolveFiles;
+    </_EvaluateItemDependsOnTargets>
+    <_EvaluateOutputsDependsOnTargets>
+      $(_EvaluatePropertyDependsOnTargets)
+    </_EvaluateOutputsDependsOnTargets>
+  </PropertyGroup>
+  
+  <Target Name="_DeleteLnkFile" Condition="'$(DCC_RemoveTmpLnkFile)'!='false'">
+    <Delete Files="$(ObjectLinkerFile)"/>
+  </Target>
+
+  <Target Name="SetMakeOptions">
+    <CreateProperty Value="true">
+      <Output TaskParameter="Value" PropertyName="DCC_MakeModifiedUnits" />
+    </CreateProperty>
+  </Target>
+
+  <Target Name="SetBuildOptions">
+    <CreateProperty Value="true">
+      <Output TaskParameter="Value" PropertyName="DCC_BuildAllUnits" />
+    </CreateProperty>
+    <CreateProperty Value="true">
+      <Output TaskParameter="Value" PropertyName="ForceRebuild" />
+    </CreateProperty>
+  </Target>
+
+  <Target Name="default" DependsOnTargets="Make"/>
+
+  <Target Name="Make" DependsOnTargets="$(MakeDependsOn)"/>
+
+  <Target Name="CoreBuild" DependsOnTargets="$(CoreBuildDependsOn)"/>
+
+  <Target Name="Build" DependsOnTargets = "$(BuildDependsOn)"/>
+
+  <!--
+  ========================================================================
+               Clean
+    Cleans intermediates and final outputs.
+  ========================================================================
+  -->
+
+  <PropertyGroup>
+    <CleanDependsOn>
+      ResolveFiles;
+      CleanOutputs;
+      CleanVersionResources;
+      CleanResources;
+      CleanAndroidApkRootDir;
+      CleanPredexedJars;
+      CleanJavaClassesOutputDir;
+      CleaniOSDevice32Outputs
+    </CleanDependsOn>
+  </PropertyGroup>
+
+
+  <Target Name="Clean" DependsOnTargets="$(CleanDependsOn)"/>
+
+  <Target Name="CleanOutputs">
+    <Delete Files="
+      @(_OutputFiles);
+      @(__OutputFiles);
+      @(_DeleteFiles);
+      $(FinalOutput);
+      $(DCPFileName);
+      @(_LicenseFile)
+    "/>
+  </Target>
+
+  <Target Name="CleanResources">
+    <Delete Files="
+      $(BRCC_OutputDir)%(RcCompile.filename)%(RcCompile.Suffix).res;
+      @(_ResourceFiles);
+      @(_LocalizedResources)
+    "/>
+  </Target>
+
+  <Target Name="CleanAndroidApkRootDir" Condition="'$(Platform)'=='Android'">
+    <RemoveDir Directories="$(APK_RootDir)"/>
+  </Target>
+
+  <!-- Android predexed jars files -->
+  <Target Name="CleanPredexedJars" DependsOnTargets="GetProjectJars" Condition="'$(Platform)'=='Android'">
+    <Delete Files="@(_JarsLocations->'%(PredexedJar)');"/>
+  </Target>
+
+  <!--
+  ========================================================================
+               CreateDirectories
+    Create directories required to build the projects.
+  ========================================================================
+  -->
+
+  <PropertyGroup>
+    <CreateDirectoriesDependsOn>
+      CreateProjectDirectories;
+      CreateLocalDirectories
+    </CreateDirectoriesDependsOn>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <_DirectoryList Include="
+      $(DCC_ExeOutput);
+      $(DCC_DcuOutput);
+      $(DCC_DcpOutput);
+      $(DCC_HppOutput);
+      $(DCC_ObjOutput);
+      $(DCC_ResourceOutput);
+      $(DCC_BplOutput);
+      $(DCC_BpiOutput);
+      $(BRCC_OutputDir);
+    "/>
+    <_DirectoryList Include="$(DelphiHPPOutputPath)" 
+      Condition="'$(DelphiHPPOutputPath)'!='' And !Exists('$(DelphiHPPOutputPath)')"/>
+  </ItemGroup>
+
+
+  <Target Name="CreateDirectories" DependsOnTargets="$(CreateDirectoriesDependsOn)"/>
+
+  <Target Name="CreateProjectDirectories">
+    <MakeDir Directories="
+      @(_DirectoryList)
+    "/>
+  </Target>
+
+  <Target Name="CreateLocalDirectories"/>
+
+  <!--
+  ========================================================================
+        BuildProjectResourceFile
+    Builds project resource file from the RCItem.
+  ========================================================================
+  -->
+  <PropertyGroup>
+    <BRCC_OutputDir Condition="'$(BRCC_OutputDir)'!='' And !HasTrailingSlash('$(BRCC_OutputDir)')">$(BRCC_OutputDir)\</BRCC_OutputDir>
+  </PropertyGroup>
+
+  <Target Name="__SetProjectResourceFileName">
+    <CreateItem Include="$(MSBuildProjectName)Resource.rc">
+      <Output TaskParameter="Include" ItemName="__ProjectResourceFile"/>
+    </CreateItem>
+    <CreateItem Include="$(MSBuildProjectName).dres">
+      <Output TaskParameter="Include" ItemName="__ProjectResourceOutputFile"/>
+    </CreateItem>
+  </Target>
+
+  <!--
+  ========================================================================
+               ResourceBuild
+    Resolve non-standard resource dependencies and build resources
+  ========================================================================
+  -->
+
+  <PropertyGroup>
+    <ResourceBuildDependsOn>
+      BuildProjectResourceFile;
+      Win32ResourceDependencies;
+      BrccCompile;
+      BuildLicenseFile;
+    </ResourceBuildDependsOn>
+  </PropertyGroup>
+
+  <Target Name="ResourceBuild" DependsOnTargets="$(ResourceBuildDependsOn)"/>
+
+  <Target Name="Win32ResourceDependencies" Condition="'@(RcCompile)'!=''">
+    <DependencyCheck
+      InputFiles="@(RcCompile)"
+      OutputFile="$(BRCC_OutputDir)%(RcCompile.Filename).res"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="RcOutOfDate"
+      />
+      <Output
+        TaskParameter="Skipped"
+        ItemName="SkippedFiles"
+      />
+    </DependencyCheck>
+  </Target>
+
+  <PropertyGroup>
+    <BRCC_Defines Condition="'$(BRCC_Defines)'!=''">$(BRCC_Defines);$(DCC_Define)</BRCC_Defines>
+    <BRCC_Defines Condition="'$(BRCC_Defines)'==''">$(Defines)</BRCC_Defines>
+    <BRCC_IncludePath Condition="'$(BRCC_IncludePath)'!=''">$(BRCC_IncludePath);$(IncludePath)</BRCC_IncludePath>
+    <BRCC_IncludePath Condition="'$(BRCC_IncludePath)'==''">$(IncludePath)</BRCC_IncludePath>
+    <ShowStdOut Condition="'$(ShowStdOut)'==''">$(ShowGeneralMessages)</ShowStdOut>
+  </PropertyGroup>
+
+  <!-- Dependency checking is disabled as there is no reliable way of checking references inside a .rc file. --> 
+  <Target Name="BrccCompile"
+    Inputs="%(RcCompile.Identity)"
+    Outputs="$(BRCC_OutputDir)%(RcCompile.filename)%(RcCompile.Suffix).res_alwaysbuild"
+    Condition="'@(RcCompile)'!=''">
+
+    <BRCC32
+      Compile="%(RcCompile.Identity)"
+      ForceExecute="true"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      CompilerToUse="$(BRCC_CompilerToUse)"
+      ResFiles="$(BRCC_OutputDir)%(RcCompile.filename)%(RcCompile.Suffix).res"
+      Language="$(BRCC_Language)"
+      ResponseFilename="$(BRCC_ResponseFilename)"
+      CodePage="$(BRCC_CodePage)"
+      UserSuppliedOptions="$(BRCC_UserSuppliedOptions)"
+      DeleteIncludePath="$(BRCC_DeleteIncludePath)"
+      Verbose="$(BRCC_Verbose)"
+      EnableMultiByte="$(BRCC_EnableMultiByte)"
+      Defines="$(BRCC_Defines)"
+      OutputDir="$(BRCC_OutputDir)"
+      IncludePath="$(BRCC_IncludePath)"
+      ShowStdOut="$(ShowStdOut)"
+    />
+  </Target>
+
+<!-- DELETE? -->
+  <Target Name="BuildLicenseFile" Condition=" '@(_LicxFiles)'!='' "
+    Inputs="@(_LicxFiles)"
+    Outputs="@(_LicenseFile)">
+    <LC
+      Sources="@(_LicxFiles)"
+      LicenseTarget="$(FinalOutput)"
+      OutputLicense="@(_LicenseFile)"
+      ReferencedAssemblies="@(Reference)"
+    />
+  </Target>
+
+  <!--
+  ========================================================================
+               ResolveFiles
+    Resolve source files passed in both the compile itemgroup and
+    reference itemgroup to allow the targets to determine what to
+    do with them.
+  ========================================================================
+  -->
+
+  <PropertyGroup>
+    <ResolveFilesDependsOn>
+      ResolveSources;
+      ResolveInputs;
+      ResolveOutputs;
+      ResolveResources;
+      ResolveLocalResources;
+      ResolvePaths;
+      ResolveReferences
+    </ResolveFilesDependsOn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DCCPasFileOutputExt>.dcu</DCCPasFileOutputExt>
+  </PropertyGroup>
+
+  <Target Name="ResolveFiles" DependsOnTargets="$(ResolveFilesDependsOn)"/>
+
+  <!-- Add Paths to searchpath for resources and units not in the project directory -->
+  <Target Name="ResolvePaths">
+    <RemoveDuplicates Inputs="@(Compile->'%(RelativeDir)')"
+          Condition="( ( '%(EXTENSION)'=='.dfm' or '%(EXTENSION)'=='.nfm' ) And '%(RelativeDir)'!='' ) ">
+      <Output TaskParameter="Filtered" ItemName="ResourcePath"/>
+    </RemoveDuplicates>
+
+    <RemoveDuplicates Inputs="@(Compile->'%(RelativeDir)')"
+          Condition="( '%(EXTENSION)'=='.pas' And '%(RelativeDir)'!='' ) ">
+      <Output TaskParameter="Filtered" ItemName="UnitPath"/>
+    </RemoveDuplicates>
+  </Target>
+
+  <Target Name="ResolveResources" DependsOnTargets="_ResolveResources">
+    <!-- Source File Resolution -->
+    <CreateItem Include="@(EmbeddedResource)"
+          Condition="( '%(EXTENSION)'=='.licx' )">
+      <Output TaskParameter="Include" ItemName="_LicxFiles"/>
+    </CreateItem>
+  </Target>
+
+  <Target Name="ResolveSources">
+    <!-- Source File Resolution -->
+    <CreateItem Include="@(Reference)"
+          Condition="( '%(EXTENSION)'=='.pas' ) ">
+      <Output TaskParameter="Include" ItemName="_PasFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DelphiCompile->'$(MSBuildProjectDirectory)\%(Filename)%(Extension)')">
+      <Output TaskParameter="Include" ItemName="_ProjectFiles"/>
+    </CreateItem>
+
+    <CreateProperty Value="%(_ProjectFiles.Filename)">
+      <Output TaskParameter="Value" PropertyName="_ProjectName"/>
+    </CreateProperty>
+  </Target>
+
+  <Target Name="ResolveOutputs">
+    <CreateItem Include="@(DCCReference->'$(DCC_DcuOutput)%(filename)$(DCCPasFileOutputExt)')"
+          Condition="('%(EXTENSION)'=='.pas' And '$(DCC_DcuOutput)'!='' ) ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DCCReference->'$(DCC_HppOutput)%(filename).hpp')"
+          Condition="('%(EXTENSION)'=='.pas' And '$(DCC_HppOutput)'!='' And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!='' ) ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DCCReference->'%(RootDir)%(Directory)%(filename).hpp')"
+          Condition="('%(EXTENSION)'=='.pas' And '$(DCC_HppOutput)'=='' And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!='' ) ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DelphiCompile->'$(DCC_HppOutput)%(filename).hpp')"
+          Condition="'$(DCC_HppOutput)'!='' And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!=''">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DelphiCompile->'%(RootDir)%(Directory)%(filename).hpp')"
+          Condition="'$(DCC_HppOutput)'=='' And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!=''">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+    
+    <CreateItem Include="@(DCCReference->'$(DCC_ObjOutput)%(filename).obj')"
+          Condition="('%(EXTENSION)'=='.pas' And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!='' ) ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DelphiCompile->'$(DCC_ObjOutput)%(filename).obj')"
+        Condition="'$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!=''">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(_ProjectFiles->'$(DCC_DcpOutput)%(filename).dcp')"
+          Condition="'%(EXTENSION)'=='.dpk' Or '%(EXTENSION)'=='.dpkw'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(_ProjectFiles->'$(DCC_BpiOutput)%(filename).bpi')"
+          Condition="('%(EXTENSION)'=='.dpk' Or '%(EXTENSION)'=='.dpkw' ) And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!='' ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+	
+	<CreateItem Include="@(_ProjectFiles->'$(DCC_BpiOutput)%(filename).a')"
+          Condition="('%(EXTENSION)'=='.dpk' Or '%(EXTENSION)'=='.dpkw' ) And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!='' ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(_ProjectFiles->'$(DCC_BpiOutput)%(filename).lib')"
+          Condition="('%(EXTENSION)'=='.dpk' Or '%(EXTENSION)'=='.dpkw' ) And '$(DCC_CBuilderOutput)'!='None' And '$(DCC_CBuilderOutput)'!='' ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DCCReference->'%(filename)$(DCCPasFileOutputExt)')"
+          Condition="('%(EXTENSION)'=='.pas')  And '$(DCC_DcuOutput)'=='' ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="$(FinalOutput)">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+    
+    <CreateItem Include="$(FinalOutput)">
+      <Output TaskParameter="Include" ItemName="OutputFile"/>
+    </CreateItem>
+
+    <CreateItem Include="@(_ResourceFiles)"
+          Condition=" '$(DependencyCheckUnits)'=='' ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(_ProjectFiles->'$(DCC_DcuOutput)\%(Filename).dcu')"
+          Condition="( ('%(EXTENSION)'=='.dpk' Or '%(EXTENSION)'=='.dpkw') And '$(DCC_DcuOutput)' != '') ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(_ProjectFiles->'%(Filename).dcu')"
+          Condition="( ('%(EXTENSION)'=='.dpk' Or '%(EXTENSION)'=='.dpkw') And '$(DCC_DcuOutput)' == '') ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+    
+    <CreateItem Include="@(_DependencyCheckOutputName->'%(FullPath).licenses')"
+          Condition=" '@(_LicxFiles)'!='' ">
+      <Output TaskParameter="Include" ItemName="_LicenseFile"/>
+    </CreateItem>
+
+    <!-- debug symbol file <project>.rsm -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(DebugSymbolFile)')" Condition="'$(DebugSymbolFile)'!=''" >
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+	
+	<!-- lnk file <project>.lnk -->
+    <CreateItem Include="$(ObjectLinkerFile)" Condition="'$(ObjectLinkerFile)'!=''">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+	
+    <!-- cmds file <project>.cmds -->
+    <CreateItem Include="$(CmdsFileOutput)" Condition="'$(CmdsFileOutput)'!=''">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+	
+	<!-- vsr file <project>.vsr -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).vsr')">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+    
+    <!-- info.plist file for OSX and iOS platforms <project>.info.plist -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).info.plist')"
+        Condition="('$(Platform)'=='$(cOSX32Platform)' Or '$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)')">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- .dSYM file for iOS platforms <project>.dSYM -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).dSYM')"
+        Condition="'$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- .entitlements file for OSX and iOS platforms <project>.entitlements -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).entitlements')"
+        Condition="('$(Platform)'=='$(cOSX32Platform)' Or '$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)')">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- ResourceRules.plist file for iOS platforms -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)ResourceRules.plist')"
+        Condition="('$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)')">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- Android manifest file -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)AndroidManifest.xml')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- Android splash_image_def file -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)splash_image_def.xml')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- Android styles file -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)styles.xml')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- Android classes.dex file -->
+    <CreateItem Include="$(ClassesDexPath)"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- obj files for iOS ARM <project>.o -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).o')">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- binary file for Android lib<project>.so -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(DllPlatformPrefix)$(MSBuildProjectName).so')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- classes.dex file -->
+    <CreateItem Include="@(OutputFile->'%(Rootdir)%(Directory)classes.dex')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- .java source files for Android Services -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).java')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName)ProxyInterface.java')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <!-- .jar binary file for Android Services -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).jar')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(DCCReference->'$(DCC_ObjOutput)%(filename).o')"
+          Condition="('%(EXTENSION)'=='.pas') ">
+      <Output TaskParameter="Include" ItemName="__OutputFiles"/>
+    </CreateItem>
+
+  </Target>
+
+  <Target Name="ResolveInputs" DependsOnTargets="_ResolveInput">
+    <CreateItem Include="@(DCCReference) ">
+      <Output TaskParameter="Include" ItemName="_InputFiles"/>
+    </CreateItem>
+    <CreateItem Include="@(DCCReference->'%(RelativeDir)%(filename).dfm')"
+          Condition="( '%(DCCReference.Form)'!='' ) ">
+      <Output TaskParameter="Include" ItemName="_InputFiles"/>
+    </CreateItem>
+  </Target>
+
+  <Target Name="_ResolveReferences">
+    <CreateItem Include="@(Reference)"
+          Condition="('%(Reference.LinkUnits)'==false)">
+      <Output TaskParameter="Include" ItemName="__References"/>
+    </CreateItem>
+  </Target>
+
+  <Target Name="ResolveReferences" DependsOnTargets="_ResolveReferences">
+    <CreateProperty Value="$(DCC_UsePackage)"
+      Condition="'$(UsePackages)'==true Or '$(DCC_EnabledPackages)'=='true'">
+      <Output TaskParameter="Value" PropertyName="_UsePackage" />
+    </CreateProperty>
+  </Target>
+
+  <!-- DELETE? -->  
+  <Target Name="_ResolveFinalOutput" DependsOnTargets="_ResolveInputFiles">
+  </Target>
+
+  <!-- DELETE? -->  
+  <Target Name="_ResolveInputFiles">
+  </Target>
+
+  
+  <Target Name="_ResolveGENTLBBindings">
+    <CreateItem
+      Include="$(MSBuildProjectName)_TLB.pas">
+      <Output 
+        TaskParameter="Include"
+        ItemName="GENTLB_Bindings"
+      />
+    </CreateItem>
+  </Target>
+
+  <!-- ResolveReferences is necessary to add runtime packages to the kibitz command line. -->
+  <Target Name="_PasKibitzCompile" DependsOnTargets="ResolveReferences;_PasCoreCompile">
+  </Target>
+
+  <Target Name="MakeAll" Outputs="%(BuildConfiguration.Identity)">
+    <MSBuild
+      Condition="'$(Config)'=='' Or '$(Config)'=='%(BuildConfiguration.Identity)'"
+      Projects="$(MSBuildProjectFullPath)"
+      Properties="Config=%(BuildConfiguration.Identity)"
+      Targets="Make"
+    />
+  </Target>
+
+  <Target Name="BuildAll" Outputs="%(BuildConfiguration.Identity)">
+    <MSBuild
+      Condition="'$(Config)'=='' Or '$(Config)'=='%(BuildConfiguration.Identity)'"
+      Projects="$(MSBuildProjectFullPath)"
+      Properties="Config=%(BuildConfiguration.Identity)"
+      Targets="Build"
+    />
+  </Target>
+
+  <Target Name="CleanAll" Outputs="%(BuildConfiguration.Identity)">
+    <MSBuild
+      Condition="'$(Config)'=='' Or '$(Config)'=='%(BuildConfiguration.Identity)'"
+      Projects="$(MSBuildProjectFullPath)"
+      Properties="Config=%(BuildConfiguration.Identity)"
+      Targets="Clean"
+    />
+  </Target>
+
+</Project>

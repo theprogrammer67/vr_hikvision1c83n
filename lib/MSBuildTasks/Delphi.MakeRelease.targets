@@ -1,0 +1,187 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" />
+
+	<PropertyGroup>
+		<MailServer Condition="'$(MailServer)' == ''">mail.rarus.ru</MailServer>
+		<MailSubject Condition="'$(MailSubject)' == ''">Новый релиз &quot;$(InternalProjectDisplayName)&quot;, версия $(Version)</MailSubject>
+		<MailTemplate Condition="'$(MailTemplate)' == ''">ReleaseNotesEMail.tmpl</MailTemplate>
+		<MailTemplate Condition="!Exists('$(MailTemplate)')">$(MSBuildThisFileDirectory)Templates\MakeRelease\ReleaseNotesEMail.tmpl</MailTemplate>
+		<GitBranch Condition="'$(GitBranch)' == ''">master</GitBranch>
+		<ReleaseBranch Condition="'$(ReleaseBranch)' == ''">release</ReleaseBranch>
+		<ChangelogFile>changelog\changelog.md</ChangelogFile>
+		<UnreleasedDir>changelog\unreleased\</UnreleasedDir>
+		<TagPrefix>release-</TagPrefix>
+		<!--Приоритет у переменной ProjectDisplayName, если она не пуста-->
+		<InternalProjectDisplayName Condition="'$(ProjectDisplayName)' != ''">$(ProjectDisplayName)</InternalProjectDisplayName>
+		<!--Приоритет у переменной ReleaseIntURL, если она не пуста-->
+		<InternalReleaseURL Condition="'$(ReleaseIntURL)' != ''">$(ReleaseIntURL)</InternalReleaseURL>
+		<InternalReleaseURL Condition="'$(InternalReleaseURL)' == ''">$(PublishDirectory.Replace("\DR_DATA",""))</InternalReleaseURL>
+	</PropertyGroup>
+
+	<Target Name="CheckConditions">
+		<Error Text="ReleaseTag notes is empty" Condition="'$(ReleaseTag)' == ''"/>
+		<Error Text="EmailSender is empty" Condition="'$(EmailSender)' == ''"/>
+		<Error Text="EmailRecipient is empty" Condition="'$(EmailRecipient)' == ''"/>
+		<Error Text="InternalProjectDisplayName is empty" Condition="'$(InternalProjectDisplayName)' == ''"/>
+		<Error Text="MailTemplate is not found" Condition="!Exists('$(MailTemplate)')"/>
+		<Error Text="InternalReleaseURL is empty" Condition="'$(InternalReleaseURL)' == ''"/>
+	</Target>
+
+	<Target Name="UpdateChangelog">
+		<Time Format="dd.MM.yyyy">
+			<Output TaskParameter="FormattedTime" PropertyName="ReleaseDate" />
+		</Time>
+
+		<!--Вливаем master в release-->
+		<GitClient Command="tag" Arguments="-d current_commit" ContinueOnError="WarnAndContinue" />
+		<GitClient Command="tag" Arguments="current_commit" />
+		<GitClient Command="checkout" Arguments="$(ReleaseBranch)" />
+		<GitClient Command="merge" Arguments="current_commit --no-ff --no-edit -m &quot;Merge branch '$(GitBranch)'&quot;" />
+
+		<ItemGroup>
+			<UnreleasedFiles Include="$(MSBuildProjectDirectory)\$(UnreleasedDir)*.txt" />
+			<ChangelogFile Include="$(MSBuildProjectDirectory)\$(ChangelogFile)"/>
+		</ItemGroup>
+
+		<ReadLinesFromFile  Condition="Exists('$(ChangelogFile)')"
+			File="@(ChangelogFile)" >
+			<Output
+				TaskParameter="Lines"
+				ItemName="ChangelogItems"/>
+		</ReadLinesFromFile>		
+
+		<!--Прочитаем список текущих изменений-->
+		<Error Text="Unreleased files not found" Condition="'@(UnreleasedFiles->Count())' == 0"/>
+		<ReadLinesFromFile
+			File="%(UnreleasedFiles.FullPath)" >
+			<Output
+				TaskParameter="Lines"
+				ItemName="ReleaseNoteItems"/>
+		</ReadLinesFromFile>		
+		<Error Text="Unreleased notes is empty" Condition="'@(ReleaseNoteItems)' == ''"/>
+
+		<!--Добавим текущие изменения в Changelog-->
+		<PropertyGroup>
+			<ReleaseNotesFormatted>@(ReleaseNoteItems->'- %(Identity)', '%0d%0a')</ReleaseNotesFormatted>
+		</PropertyGroup>
+		<ItemGroup>
+			<Changelog Include="## [$(Version)] - $(ReleaseDate)" />
+			<Changelog Include="$(ReleaseNotesFormatted)" />
+			<Changelog Include="@(ChangelogItems)" Condition="Exists('$(ChangelogFile)')" />
+		</ItemGroup>
+		<WriteLinesToFile
+            File="@(ChangelogFile)"
+            Lines="@(Changelog)"
+            Overwrite="true" />		
+	</Target>
+
+	<Target Name="SaveUnreleased">
+		<!--Сохраним описания изменений в файл для возможности контроля тестировщиком-->
+		<ItemGroup>
+			<UnreleasedFilesToSave Include="$(MSBuildProjectDirectory)\$(UnreleasedDir)*.txt" />
+		</ItemGroup>
+		<ReadLinesFromFile
+			Condition="'@(UnreleasedFilesToSave->Count())' > 0"	
+			File="%(UnreleasedFilesToSave.FullPath)" >
+			<Output
+				TaskParameter="Lines"
+				ItemName="ReleaseNoteItemsToSave"/>
+		</ReadLinesFromFile>		
+		<PropertyGroup>
+			<ReleaseNotesFormattedToSave>@(ReleaseNoteItemsToSave->'- %(Identity)', '%0d%0a')</ReleaseNotesFormattedToSave>
+		</PropertyGroup>
+		<WriteLinesToFile
+ 			Condition="'$(ReleaseNotesFormattedToSave)' != ''"	
+            File="$(DCC_ExeOutput)\unreleased.md"
+            Lines="$(ReleaseNotesFormattedToSave)"
+            Overwrite="true" />		
+	</Target>	
+
+	<Target Name="DeleteUnreleased">
+		<!--Очистим список текущих изменений в репозитории-->
+		<ItemGroup>
+			<FilesToDelete Include="$(MSBuildProjectDirectory)\$(UnreleasedDir)*.txt"/>
+		</ItemGroup>   
+		<Delete Files="@(FilesToDelete)" />   
+	</Target>
+
+	<Target Name="UpdateReleaseBranch">
+		<GitClient Command="add" Arguments="-A &quot;changelog&quot;" ContinueOnError="WarnAndContinue" />
+		<GitClient Command="commit" Arguments="-m &quot;add: Update changelog and make release $(ReleaseTag)&quot;" />
+		<GitClient Command="push" Arguments="origin HEAD:$(ReleaseBranch)" />
+		<GitClient Command="tag" Arguments="&quot;$(TagPrefix)$(ReleaseTag)&quot;" />
+		<GitClient Command="push" Arguments="origin $(TagPrefix)$(ReleaseTag)" />
+	</Target>
+
+	<Target Name="UpdateMasterBranch">
+		<!--Вливаем release в master-->
+		<GitClient Command="tag" Arguments="-d release_commit" ContinueOnError="WarnAndContinue" />
+		<GitClient Command="tag" Arguments="release_commit" />
+		<GitClient Command="checkout" Arguments="$(GitBranch)" />
+		<GitClient Command="merge " Arguments="release_commit --no-ff --no-edit -m &quot;Merge branch '$(ReleaseBranch)' $(TagPrefix)$(ReleaseTag)&quot;" />
+		<GitClient Command="push" Arguments="origin $(GitBranch)" />
+	</Target>
+
+
+	<Target Name="SendReleaseNotifications" >		
+		<ConvertToAbsolutePath Paths="$(DCC_ExeOutput)\mail.tmp">
+			<Output TaskParameter="AbsolutePaths" PropertyName="MailBodyTmpFile"/>
+		</ConvertToAbsolutePath>
+
+
+		<!--Формируем текст письма по шаблону MailTemplate в параметр MailBody и отправляем уведомление -->
+		<ItemGroup>
+			<MailBody_Tokens Include="ProjectDisplayName">
+				<ReplacementValue>$(InternalProjectDisplayName)</ReplacementValue>
+			</MailBody_Tokens>
+			<MailBody_Tokens Include="Version">
+				<ReplacementValue>$(Version)</ReplacementValue>
+			</MailBody_Tokens>
+			<MailBody_Tokens Include="ReleaseDate">
+				<ReplacementValue>$(ReleaseDate)</ReplacementValue>
+			</MailBody_Tokens>
+			<MailBody_Tokens Include="ReleaseNoteItems">
+				<ReplacementValue>@(ReleaseNoteItems->'- %(Identity)', '%0d%0a')</ReplacementValue>
+			</MailBody_Tokens>
+			<MailBody_Tokens Include="ReleaseExtURL">
+				<ReplacementValue>$(ReleaseExtURL)</ReplacementValue>
+			</MailBody_Tokens>
+			<MailBody_Tokens Include="InternalReleaseURL">
+				<ReplacementValue>$(InternalReleaseURL)</ReplacementValue>
+			</MailBody_Tokens>
+		</ItemGroup>		
+		<TemplateFile Template="$(MailTemplate)" OutputFilename="$(MailBodyTmpFile)" Tokens="@(MailBody_Tokens)"/>
+
+		<ReadLinesFromFile
+			File="$(MailBodyTmpFile)" >
+			<Output
+				TaskParameter="Lines"
+				ItemName="MailBody"/>
+		</ReadLinesFromFile>		
+		<Delete Files="$(MailBodyTmpFile)"/>
+		
+		<PropertyGroup>
+			<MailBodyText>@(MailBody->'%(Identity)', '%0d%0a')</MailBodyText>
+			<MailBodyText>$(MailBodyText.Replace("\n","%0d%0a"))</MailBodyText>
+		</PropertyGroup>
+		
+		<Mail SmtpServer="$(MailServer)"
+			EnableSsl="true"
+			To="$(EmailRecipient)"
+			From="$(EmailSender)"
+			Subject="$(MailSubject)"
+			Body="$(MailBodyText)"
+			ContinueOnError="WarnAndContinue" />
+	</Target>
+
+	<Target Name="UpdateBranches" DependsOnTargets="UpdateReleaseBranch;UpdateMasterBranch">
+	</Target>
+
+	<Target Name="PublishChangelog">
+		<Error Text="PublishDirectory is not set" Condition="'$(PublishDirectory)' == ''"/>
+		<Copy SourceFiles="@(ChangelogFile)" DestinationFolder="$(PublishDirectory)"/>
+	</Target>
+
+	<Target Name="MakeRelease" DependsOnTargets="CheckConditions;UpdateChangelog;$(PublishTarget);DeleteUnreleased;UpdateBranches;SendReleaseNotifications">
+	</Target>
+</Project>

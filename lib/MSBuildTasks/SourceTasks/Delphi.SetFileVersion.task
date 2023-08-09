@@ -1,0 +1,40 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+  <Import Project="UsingTask.targets"/>
+  <UsingTask TaskName="__SetFileVersion" TaskFactory="CodeTaskFactory" AssemblyFile="$(UsingTaskAssemblyPath)">
+    <ParameterGroup>
+      <VerInfoKeys ParameterType="System.String" Required="true" />
+      <VerInfoProperties ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Out ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // split values as CSV (by ";")
+        String[] verInfoKeysList = VerInfoKeys.Split(';');
+        Dictionary<String, String> d = new Dictionary<String, String>();
+        foreach (String verInfoValue in verInfoKeysList) {
+            // split values as "key=value"
+            if (! String.IsNullOrEmpty(verInfoValue)) {
+                String[] kv = verInfoValue.Split('=');
+                d.Add(kv[0], kv[1]);
+            }
+        }
+        if (VerInfoProperties.Length > 0) {
+          foreach (ITaskItem item in VerInfoProperties) {
+            String value = item.GetMetadata("Value");
+            if (value.Length > 0) {
+              Log.LogMessage("{0}: {1}", item.ItemSpec, value);
+              d.Remove(item.ItemSpec);
+              d.Add(item.ItemSpec, value);
+            }
+          }
+        }
+
+        List<String> L = new List<String>();
+        foreach (KeyValuePair<String, String> kv in d) {
+            L.Add(kv.Key + "=" + kv.Value);
+        }
+        _Out = String.Join(";", L.ToArray());
+]]></Code>
+    </Task>
+  </UsingTask>
+</Project>

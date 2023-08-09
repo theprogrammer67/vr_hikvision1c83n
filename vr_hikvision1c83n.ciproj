@@ -1,0 +1,44 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<DCC_ExeOutput Condition="'$(DCC_ExeOutput)' == ''">bin</DCC_ExeOutput>
+		<PublishDirectory Condition="'$(PublishDirectory)' == ''">pub</PublishDirectory>
+		<!-- Параметры для формирования файлов info.xml и manifest.xml -->
+		<EqType>Видеокамера</EqType>    
+		<EqModelName>1С-Рарус: Драйвер видеорегистратора HIKVISION</EqModelName>
+		<EqDescription>1С-Рарус: Драйвер видеорегистратора HIKVISION 1С:Совместимо для 1С:БПО NativeAPI</EqDescription>
+		<PublishSource>$(DCC_ExeOutput)\$(MSBuildProjectName).zip</PublishSource>
+		<ComponentTYpe>native</ComponentTYpe>
+		<PublishTarget>InternalPublish</PublishTarget>
+		<InternalProjectDisplayName Condition="'$(ProjectDisplayName)' != ''">$(ProjectDisplayName)</InternalProjectDisplayName>
+		<InternalProjectDisplayName Condition="'$(InternalProjectDisplayName)' == ''">1С-Рарус: Драйвер видеорегистратора HIKVISION</InternalProjectDisplayName>
+	</PropertyGroup>
+
+	<Import Project="$(MSBuildProjectName).dproj"/>
+	<Import Project="lib\MSBuildTasks\Delphi.VersionInfo.targets"/>
+	<Import Project="lib\MSBuildTasks\Delphi.Drv1c.targets"/>
+	<Import Project="lib\MSBuildTasks\Delphi.MakeRelease.targets"/>
+
+	<ItemGroup>
+		<AdditionalFiles Include="$(MSBuildProjectDirectory)\*.epf" />
+	</ItemGroup>
+
+	<Target Name="MakeHelpResource">
+		<ItemGroup>
+			<HelpFiles Include="doc\help\*.*" />
+		</ItemGroup>
+		<MSBuild.Community.Tasks.Zip WorkingDirectory="doc\help" Files="@(HelpFiles)" ZipFileName="resources\help.zip" />
+	</Target>
+
+	<Target Name="MakePdfDoc">
+		<Exec Command="mdtohtml.exe &quot;doc\help\help.md&quot; &quot;$(DCC_ExeOutput)\help.pdf&quot; &quot;doc\help\github.css&quot;"/>
+		<ItemGroup>
+			<AdditionalFiles Include="$(DCC_ExeOutput)\help.pdf" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="BeforeBuild" DependsOnTargets="MakeHelpResource;MakePdfDoc" BeforeTargets="_BuildRCFile"/>
+	<Target Name="AfterBuild" DependsOnTargets="Generate-Changelog;Sign;BuildDrv1c" AfterTargets="Build"/>
+	<Target Name="InternalPublish" DependsOnTargets="MakePdfDoc;_Publish;PublishAdditionalFiles;PublishChangelog"/>
+	<Target Name="Publish" DependsOnTargets="MakeRelease"/>
+	<Target Name="Test" DependsOnTargets="CheckConditions"/>
+</Project>

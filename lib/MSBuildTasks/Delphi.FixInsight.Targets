@@ -1,0 +1,28 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <ItemGroup>
+        <FI_SearchPath Include="$(DCC_UnitSearchPath)"/>
+    </ItemGroup>
+    <PropertyGroup>
+        <FixInsightCLI Condition="'$(FixInsightCLI)'==''">$(ProgramFiles)\FixInsight\FixInsightCL.exe</FixInsightCLI>
+
+        <FI_Implicit_Define Condition="'$(Platform)'=='Win32'">WIN32;MSWINDOWS</FI_Implicit_Define>
+        <FI_Implicit_Define Condition="'$(Platform)'=='Win64'">WIN64;MSWINDOWS</FI_Implicit_Define>
+        <FI_Implicit_Define Condition="'$(Platform)'=='Android'">ANDROID</FI_Implicit_Define>
+        <FI_SettingsOverride Condition="'$(FixInsightSettings)'!=''">--settings="$(FixInsightSettings)"</FI_SettingsOverride>
+        <FixInsightLogFileName Condition="$(FixInsightLogFileName)==''">FixInsight_$(Platform)_$(Config).log</FixInsightLogFileName>
+
+        <FixInsightCommand>"$(FixInsightCLI)" --silent --project="$(MainSource)" $(FI_SettingsOverride) --defines=$(FI_Implicit_Define);$(DCC_Define) --output="$(FixInsightLogFileName)" --searchpath="@(FI_SearchPath->'%(FullPath)')"</FixInsightCommand>
+    </PropertyGroup>
+    <Target Name="__FixInsight">
+        <Delete Files="$(FixInsightLogFileName)" Condition="Exists('$(FixInsightLogFileName)')"/>
+        <Exec Command="$(FixInsightCommand)"/>
+    </Target>
+    <Target Name="TestFixInsightLogFile">
+        <PropertyGroup>
+            <FixInsightErrors Condition="Exists('$(FixInsightLogFileName)')">$([System.IO.File]::ReadAllText($(FixInsightLogFileName)))</FixInsightErrors>
+        </PropertyGroup>
+        <Message Importance="High" Text="$(FixInsightErrors)" Condition="'$(FixInsightErrors)' != ''"/>
+        <Error Text="FixInsight check failure: $(FixInsightErrors.Replace('%0a', ''))" Condition="'$(FixInsightErrors)' != ''" File="$(FixInsightLogFileName)"/>
+    </Target>
+    <Target Name="_FixInsight" DependsOnTargets="__FixInsight;TestFixInsightLogFile" AfterTargets="CoreBuild"/>
+</Project>

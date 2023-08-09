@@ -1,0 +1,33 @@
+variables:
+    BDS: "$BDS_D10"
+    Platform: Win32
+    Config: Release
+
+build:
+    stage: build
+    script:
+        - msbuild /t:build MSBuildTasks.ciproj
+
+.deploy: &deploy
+    stage: deploy
+    when: manual
+    variables:
+        PublishDirectory: "$MSBuildTasks"
+    script:
+        - msbuild /t:deploy MSBuildTasks.ciproj
+    only:
+        - master
+        - ci
+
+deploy drcis 2008:
+    <<: *deploy
+    environment:
+        name: drcis-2008-runner
+        url: ssh://drcis-2008.dyn.rarus.ru
+
+deploy drcis 2003:
+    <<: *deploy
+    environment:
+        name: drcis-2003-runner
+        url: ssh://drcis-2003.dyn.rarus.ru
+

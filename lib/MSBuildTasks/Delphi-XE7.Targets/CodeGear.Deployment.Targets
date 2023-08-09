@@ -1,0 +1,501 @@
+<!--
+===============================================================================================
+
+  CodeGear.Deployment.Targets
+
+  WARNING
+
+  DO NOT MODIFY unless you have made a backup of these files.  Modifying
+  this file unless you have knowledge about MSBuild you could cause problems
+  when loading or building projects in the IDE or building from the
+  command-line.
+
+===============================================================================================
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="">
+  <!--
+    Note: Importation of this .targets file into the build depends on meeting
+    these conditions in CodeGear.Profiles.Targets
+    1) a Profile has been specified by the project
+    2) the .profile file exists and can be read
+  -->
+
+  <UsingTask TaskName="PAClient" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="WriteLinesToFileEx" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="GenPList" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="FindItemsByMetadata" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="StringReplace" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+
+  <PropertyGroup>
+
+    <DeployDependsOnTargets>
+      _VerifyProfileFile;
+      $(DeployDependsOnTargets);
+      _CleanRemoteDir;
+      _DeployFiles;
+      _Codesign;
+      _OSXAppStore;
+      _Bundle;
+      _AndroidPackaging;
+      _CheckKeyStore;
+      _AndroidSign;
+      _AndroidZipAlign;
+      _CheckAPKFileOutputResult;
+      _DeleteAndroidAssetsInfoFile;
+    </DeployDependsOnTargets>
+
+  </PropertyGroup>
+
+
+   <!-- Global properties for OSX32 platform deployment-->
+   <PropertyGroup Condition="'$(Platform)'=='OSX32'">
+     <DeveloperCert Condition="'$(PF_DevSandbox)'!=''">$(PF_DevSandbox)</DeveloperCert>
+     <DeveloperCert Condition="'$(PF_DevSandbox)'==''">$(ENV_PF_DevSandbox)</DeveloperCert>
+     <InstallerCert Condition="'$(PF_Sandbox)'!=''">$(PF_Sandbox)</InstallerCert>
+     <InstallerCert Condition="'$(PF_Sandbox)'==''">$(ENV_PF_Sandbox)</InstallerCert>
+   </PropertyGroup>
+
+  <!-- Global properties for iOSDevice platform deployment-->
+  <PropertyGroup Condition="'$(Platform)'=='iOSDevice'">
+    <BT_BuildType Condition="'$(BT_BuildType)'==''">Debug</BT_BuildType>
+    <!--Debug-->
+    <DeveloperCert Condition="'$(BT_BuildType)'=='Debug' And '$(PF_DevDebug)'==''">$(ENV_PF_DevDebug)</DeveloperCert>
+    <DeveloperCert Condition="'$(BT_BuildType)'=='Debug' And '$(PF_DevDebug)'!=''">$(PF_DevDebug)</DeveloperCert>
+    <InstallerCert Condition="'$(BT_BuildType)'=='Debug'">$(DeveloperCert)</InstallerCert>
+    <!--Ad Hoc-->
+    <DeveloperCert Condition="'$(BT_BuildType)'=='Adhoc' And '$(PF_DevAdHoc)'==''">$(ENV_PF_DevAdHoc)</DeveloperCert>
+    <DeveloperCert Condition="'$(BT_BuildType)'=='Adhoc' And '$(PF_DevAdHoc)'!=''">$(PF_DevAdHoc)</DeveloperCert>
+    <InstallerCert Condition="'$(BT_BuildType)'=='Adhoc' And '$(PF_AdHoc)'==''">$(ENV_PF_AdHoc)</InstallerCert>
+    <InstallerCert Condition="'$(BT_BuildType)'=='Adhoc' And '$(PF_AdHoc)'!=''">$(PF_AdHoc)</InstallerCert>
+    <!--App Store-->
+    <DeveloperCert Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_DevAppStore)'==''">$(ENV_PF_DevAppStore)</DeveloperCert>
+    <DeveloperCert Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_DevAppStore)'!=''">$(PF_DevAppStore)</DeveloperCert>
+    <InstallerCert Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_AppStore)'==''">$(ENV_PF_AppStore)</InstallerCert>
+    <InstallerCert Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_AppStore)'!=''">$(PF_AppStore)</InstallerCert>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Platform)'=='OSX32' Or '$(Platform)'=='iOSDevice' Or '$(Platform)'=='iOSSimulator'">
+    <RemoteDirToClean Condition="'$(PROJECTNAME)'!=''">$(PROJECTNAME).app</RemoteDirToClean>
+    <RemoteDirToClean Condition="'$(PROJECTNAME)'==''">$(MSBuildProjectName).app</RemoteDirToClean>
+  </PropertyGroup>
+
+  <!-- Global properties for Android platform deployment -->
+  <PropertyGroup Condition="'$(Platform)'=='Android'">
+
+    <!-- APK OutputDir for Delphi and C++ Builder -->
+    <APK_OutputDir Condition="'$(DCC_ExeOutput)'!=''">$(DCC_ExeOutput)</APK_OutputDir>
+    <APK_OutputDir Condition="'$(FinalOutputDir)'!=''">$(FinalOutputDir)</APK_OutputDir>
+
+    <APK_FolderName Condition="'$(PROJECTNAME)'!=''">$(PROJECTNAME)</APK_FolderName>
+    <APK_FolderName Condition="'$(PROJECTNAME)'==''">$(MSBuildProjectName)</APK_FolderName>
+
+    <!-- APK Root Directory -->
+    <APK_RootDir Condition="'$(APK_OutputDir)'!='' And '$(APK_FolderName)'!='' And !HasTrailingSlash($(APK_OutputDir))">$(APK_OutputDir)\$(APK_FolderName)</APK_RootDir>
+    <APK_RootDir Condition="'$(APK_OutputDir)'!='' And '$(APK_FolderName)'!='' And HasTrailingSlash($(APK_OutputDir))">$(APK_OutputDir)$(APK_FolderName)</APK_RootDir>
+
+    <!-- APK Outputs paths -->
+    <APK_SrcDir>$(APK_RootDir)\library</APK_SrcDir>
+    <APK_ResDir>$(APK_RootDir)\res</APK_ResDir>
+    <APK_BinDir>$(APK_RootDir)\bin</APK_BinDir>
+    <APK_ClassesDir>$(APK_RootDir)\classes</APK_ClassesDir>
+    <APK_LibraryDir>$(APK_RootDir)\library\lib\armeabi-v7a</APK_LibraryDir>
+    <APK_AssetsDir>$(APK_RootDir)\assets</APK_AssetsDir>
+    <APK_ManifestDir>$(APK_RootDir)</APK_ManifestDir>
+
+    <!-- Android JDK And SDK Tools -->
+    <JAVA_SIGN_TOOL>$(JDKJarsignerPath)</JAVA_SIGN_TOOL>
+    <JAVA_KEYSTORE_TOOL>$(JDKKeyToolPath)</JAVA_KEYSTORE_TOOL>
+    <SDK_ALIGNMENT_TOOL>$(SDKZipAlignPath)</SDK_ALIGNMENT_TOOL>
+    <SDK_PACKAGE_TOOL>$(SDKAaptPath)</SDK_PACKAGE_TOOL>
+
+    <!-- To be considered -->
+    <AndroidUtils>$(BDS)\externals\android\utils</AndroidUtils>
+    <SDK_APIPATH>$(SDKApiLevelPath)</SDK_APIPATH>
+
+    <!-- Android Packaging and signing Data -->
+    <DebugKeyStoreFile>$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(ProductVersion)\debug.keystore</DebugKeyStoreFile>
+    <DebugKeyStore>$(APK_RootDir)\debug.keystore</DebugKeyStore>
+    <DebugKeyStorePass>android</DebugKeyStorePass>
+    <DebugAliasKey>androiddebugkey</DebugAliasKey>
+    <DebugAliasKeyPass>android</DebugAliasKeyPass>
+    <KeySigAlgignment>MD5withRSA</KeySigAlgignment>
+    <!--KeyStore Generation default settings -->
+    <AndroidKeyAlg>RSA</AndroidKeyAlg>
+    <AndroidKeySize>2048</AndroidKeySize>
+    <AndroidKeyValidaty>10000</AndroidKeyValidaty>
+
+    <!-- KeyStore settings for debug platform configuration -->
+    <KeyStoreFile Condition="'$(BT_BuildType)'=='Debug'">$(DebugKeyStoreFile)</KeyStoreFile>
+    <KeyStorePass Condition="'$(BT_BuildType)'=='Debug'">$(DebugKeyStorePass)</KeyStorePass>
+    <AliasKey Condition="'$(BT_BuildType)'=='Debug'">$(DebugAliasKey)</AliasKey>
+    <AliasKeyPass Condition="'$(BT_BuildType)'=='Debug'">$(DebugAliasKeyPass)</AliasKeyPass>
+    <DecryptPasswords Condition="'$(BT_BuildType)'=='Debug'">False</DecryptPasswords>
+
+    <!-- KeyStore settings for Application Store platform configuration -->
+    <KeyStoreFile Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_KeyStore)'==''">$(ENV_PF_KeyStore)</KeyStoreFile>
+    <KeyStoreFile Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_KeyStore)'!=''">$(PF_KeyStore)</KeyStoreFile>
+    <KeyStorePass Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_KeyStorePass)'==''">$(ENV_PF_KeyStorePass)</KeyStorePass>
+    <KeyStorePass Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_KeyStorePass)'!=''">$(PF_KeyStorePass)</KeyStorePass>
+    <AliasKey Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_AliasKey)'==''">$(ENV_PF_AliasKey)</AliasKey>
+    <AliasKey Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_AliasKey)'!=''">$(PF_AliasKey)</AliasKey>
+    <AliasKeyPass Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_AliasKeyPass)'==''">$(ENV_PF_AliasKeyPass)</AliasKeyPass>
+    <AliasKeyPass Condition="'$(BT_BuildType)'=='AppStore' And '$(PF_AliasKeyPass)'!=''">$(PF_AliasKeyPass)</AliasKeyPass>
+    <DecryptPasswords Condition="'$(BT_BuildType)'=='AppStore'">True</DecryptPasswords>
+
+    <!-- APK file outputs names -->
+    <ANDROID_OUTPUT_FILENAME Condition="'$(SanitizedProjectName)'!=''">$(DllPlatformPrefix)$(SanitizedProjectName).so</ANDROID_OUTPUT_FILENAME>
+    <ANDROID_OUTPUT_FILENAME Condition="'$(SanitizedProjectName)'==''">$(DllPlatformPrefix)$(MSBuildProjectName).so</ANDROID_OUTPUT_FILENAME>
+
+    <UNSIGNED_APK_FILENAME>$(APK_BinDir)\$(MSBuildProjectName)-unsigned.apk</UNSIGNED_APK_FILENAME>
+    <SIGNED_APK_FILENAME>$(APK_BinDir)\$(MSBuildProjectName).apk</SIGNED_APK_FILENAME>
+
+    <RemoteDirForPlatform>$(APK_OutputDir)\</RemoteDirForPlatform>
+    <RemoteDirToClean>$(APK_RootDir)</RemoteDirToClean>
+
+    <!-- Android NDK strip tool location -->
+    <NDKStripToolLocation>$(NDKArmLinuxAndroidStripFile)</NDKStripToolLocation>
+  </PropertyGroup>
+
+
+  <Target Name="_ConvertForms" Condition="'$(Platform)'=='iOSDevice'">
+    <Message Text="Converting forms."/>
+    <Exec Command="&quot;$(BDS)\bin\convert.exe&quot; -b -e.fsx &quot;%(ConvertForm.BaseName)&quot;" ContinueOnError="True">
+        <Output TaskParameter="ExitCode" PropertyName="ErrorCode"/>
+        <Output TaskParameter="StdOutEncoding" PropertyName="StdOut"/>
+    </Exec>
+    <Message Text="$(StdOut)"/>
+    <Error Text="Covert failed to convert one of the .fmx files.  Look at output tab for more information." Condition="'$(ErrorCode)'>'0'"/>
+  </Target>
+
+  <Target Name="_CalculateDeployment">
+    <Message
+      Condition="'$(_Debug)'!=''"
+      Text="Using profile &quot;$(Profile)&quot;, platform &quot;$(Platform)&quot;, configuration &quot;$(Config)&quot;"
+    />
+    <Warning
+      Condition="'$(Platform)'==''"
+      Text="No platform specified. Missing option /p:Platform=&lt;platform name&gt;"
+    />
+    <Warning
+      Condition="'$(Config)'==''"
+      Text="No configuration specified. Missing option /p:Config=&lt;configuration name&gt;"
+    />
+  </Target>
+
+
+  <!--
+  ===============================================================================================
+                __CreateInclusionListItem
+
+     Include statement is different for Android platform. See global properties.
+     For Windows\OSX\iOS platforms
+        - Remote Root Directory is $(PROJECTNAME) or $(PROJECTNAME).app
+     For Android
+        - APK Root Directory is $(APK_OutputDir) that is based on $(DCC_ExeOutput)
+  ===============================================================================================
+  -->
+  <Target Name="__CreateInclusionListItem">
+    <ItemGroup>
+      <!-- Add deploy files for Windows/OSX/iOS -->
+      <FileList Include="%(DeployFile.RemoteDir)%(DeployFile.RemoteName)"
+        Condition="'$(RemoteDirForPlatform)'=='' And Exists(%(DeployFile.Identity))"/>
+      <!-- Add deploy files for Android -->
+      <FileList Include="$(RemoteDirForPlatform)%(DeployFile.RemoteDir)%(DeployFile.RemoteName)"
+        Condition="'$(RemoteDirForPlatform)'!='' And Exists(%(DeployFile.Identity))"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_CleanRemoteDir" DependsOnTargets="__CreateInclusionListItem">
+    <Message Condition="'$(Platform)'=='Android'" Text="Cleaning APK Output Directory:  $(RemoteDirToClean)"/>
+    <Message Condition="'$(Platform)'!='Android'" Text="Cleaning Remote Directory:  $(RemoteDirToClean)"/>
+    <!--create inclusion list file-->
+    <WriteLinesToFile
+      File="$(MSBuildProjectDirectory)\$(MSBuildProjectName)._@emb_.tmp"
+      Lines="@(FileList)"
+      Overwrite="true"/>
+    <!--clean remote directory-->
+    <PAClient
+      ProfileName="$(Profile)"
+      PutRemoteDir="$(RemoteDirToClean)"
+      CleanRemoteTempFile="$(MSBuildProjectDirectory)\$(MSBuildProjectName)._@emb_.tmp"
+      CleanRemoteDir="true"
+      PlatformTarget="$(Platform)"
+    />
+    <!--delete inclusion list file -->
+    <Delete Files="$(MSBuildProjectDirectory)\$(MSBuildProjectName)._@emb_.tmp" Condition="'$(keeptmpfile)'==''"/>
+  </Target>
+
+
+  <!--Deploy files for Windows, OSX32 and iOS to remote machines with remote profiles -->
+  <Target Name="_DeployFiles"
+    DependsOnTargets="_CalculateDeployment;_CleanRemoteDir;_AddDeployAssetsFile" Outputs="%(DeployFile.Identity)">
+    <Message
+      Condition="'$(_Debug)'!='' And Exists(%(DeployFile.Identity))"
+      Text="%(DeployFile.Identity) -> %(DeployFile.RemoteDir)
+        Operation=%(DeployFile.Operation)
+        LocalCommands=%(DeployFile.LocalCommand)
+        RemoteCommands=%(DeployFile.RemoteCommand)
+        RemoteName=%(DeployFile.RemoteName)
+        OverWrite=%(DeployFile.Overwrite)"
+    />
+    <PAClient
+      Condition="'$(_Debug)'=='' And Exists(%(DeployFile.Identity))"
+      ProfileName="$(Profile)"
+      PutLocalName="%(DeployFile.Identity)"
+      PutRemoteDir="$(RemoteDirForPlatform)%(DeployFile.RemoteDir)"
+      PutRemoteName="%(DeployFile.RemoteName)"
+      PutOverWrite="%(DeployFile.Overwrite)"
+      PutOperation="%(DeployFile.Operation)"
+    />
+    <Warning
+      Condition="!Exists(%(DeployFile.Identity)) And '%(DeployFile.Required)'!='true'"
+      Text="Local file &quot;%(DeployFile.Identity)&quot; not found. Skipping deployment."
+    />
+    <Error
+      Condition="!Exists(%(DeployFile.Identity)) And '%(DeployFile.Required)'=='true'"
+      Text="Required local file &quot;%(DeployFile.Identity)&quot; not found. Deployment failed."
+    />
+  </Target>
+
+  <Target Name="_OSXAppStore" DependsOnTargets="__CheckIdentity" Condition="'$(Platform)'=='OSX32' And '$(BT_BuildType)'=='AppStore'">
+    <PAClient
+      ProfileName="$(Profile)"
+      Certificate="$(DeveloperCert)"
+      CodesignPath="$(PROJECTNAME).app"
+      Entitlements="Contents/Entitlements.plist"
+      SignApplication="true"
+    />
+    <PAClient
+        ProfileName="$(Profile)"
+        CodesignPath="$(PROJECTNAME).app"
+        InstallPath="/Applications"
+        PackageName="$(PROJECTNAME).pkg"
+        Identity="$(InstallerCert)"
+        ProductBuild="true"
+    />
+  </Target>
+
+  <!--
+    Developer identity is a required parameter to sign iOS applications
+    Installer certificate (Provisioning Profile) is a optional parameter to generate a iOS bundle package (.ipa file)
+  -->
+  <Target Name="__CheckIdentity">
+
+    <Error Condition="'$(DeveloperCert)'=='' And '$(BT_BuildType)'!='AppStore'" HelpKeyword="16611"
+      Text="Missing provisioning information. Distribution certificate has not been specified for the &quot;$(BT_BuildType)&quot; platform configuration."/>
+    <Error Condition="'$(DeveloperCert)'=='' And '$(BT_BuildType)'=='AppStore'" HelpKeyword="16611"
+      Text="Missing provisioning information. Distribution certificate has not been specified for the &quot;Application Store&quot; platform configuration."/>
+
+    <Error Condition="('$(BT_BuildType)'=='AppStore' And '$(InstallerCert)'=='')" HelpKeyword="16611"
+      Text="Missing provisioning information. Mobile Provisioning Profile has not been specified for the &quot;Application Store&quot; platform configuration."/>
+    <Error Condition="('$(BT_BuildType)'=='Adhoc' And '$(InstallerCert)'=='')" HelpKeyword="16611"
+      Text="Missing provisioning information. Mobile Provisioning Profile has not been specified for the &quot;Ad hoc&quot; platform configuration."/>
+  </Target>
+
+  <Target Name="_Codesign" Condition="('$(Platform)'=='iOSDevice')" DependsOnTargets="__CheckIdentity" >
+    <PAClient
+      ProfileName="$(Profile)"
+      Certificate="$(DeveloperCert)"
+      CodesignPath="$(PROJECTNAME).app"
+      Entitlements="Entitlements.plist"
+      SignApplication="true"
+    />
+  </Target>
+
+  <Target Name="_CreateBundle" DependsOnTargets="__CheckIdentity">
+    <PAClient
+      ProfileName="$(Profile)"
+      CodesignPath="$(PROJECTNAME).app"
+      IPAInputName="$(PROJECTNAME).app"
+      IPAOutputName="$(PROJECTNAME).ipa"
+      ProvisionFile="$(InstallerCert)"
+      Certificate="$(DeveloperCert)"
+      BundleApplication="true"
+      SignApplication="false"
+    />
+  </Target>
+
+   <Target Name="_Bundle"
+    Condition="('$(Platform)'=='iOSDevice' And ('$(BT_BuildType)'=='Adhoc' Or '$(BT_BuildType)'=='AppStore'))"
+    DependsOnTargets="_CreateBundle">
+
+    <PAClient
+      ProfileName="$(Profile)"
+      RemoteBundleDir="$(PROJECTNAME).ipa"
+      LocalBundleDir="$(MSBuildProjectDirectory)\$(DCC_DcuOutput)"
+      BundleApplication="false"
+      SignApplication="false"
+      GetBundleApp="true"
+    />
+  </Target>
+
+
+
+  <!--
+  ========================================================================
+               Android Deployment
+
+    Targets to perform packaging and signing Android applications
+
+  ========================================================================
+  -->
+  <Target Name="__CreateAPKDirs" Condition="'$(Platform)'=='Android'">
+    <!-- Create the necessary APK directories for packaging -->
+    <MakeDir Directories="$(APK_BinDir)" Condition="!Exists($(APK_BinDir))" />
+    <MakeDir Directories="$(APK_ClassesDir)" Condition="!Exists($(APK_ClassesDir))" />
+    <MakeDir Directories="$(APK_AssetsDir)" Condition="!Exists($(APK_AssetsDir))" />
+    <MakeDir Directories="$(APK_SrcDir)" Condition="!Exists($(APK_SrcDir))" />
+  </Target>
+
+  <Target Name="__DeleteOldSignedAPK" Condition="Exists('$(SIGNED_APK_FILENAME)')">
+    <Delete Files="$(SIGNED_APK_FILENAME)"/>
+  </Target>
+
+  <Target Name="__StripOutputFile" Condition="'$(Platform)'=='Android'">
+    <!-- Strip Android library output file to remove debug symbols -->
+    <Copy
+        SourceFiles="$(APK_LibraryDir)\$(ANDROID_OUTPUT_FILENAME)"
+        DestinationFiles="$(APK_RootDir)\debug\$(ANDROID_OUTPUT_FILENAME)"
+    />
+    <PAClient
+      ProfileName=""
+      AndroidSign="False"
+      AndroidApkGeneration="False"
+      StripOutputFile="True"
+      StripExePath="$(NDKStripToolLocation)"
+      SourceOutputPath="$(APK_RootDir)\debug\$(ANDROID_OUTPUT_FILENAME)"
+      DestOutputPath="$(APK_LibraryDir)\$(ANDROID_OUTPUT_FILENAME)"
+    />
+  </Target>
+
+
+  <Target Name="_AndroidPackaging" Condition="'$(Platform)'=='Android'"
+    DependsOnTargets="__DeleteOldSignedAPK;__CreateAPKDirs;__StripOutputFile">
+    <!-- Creates unsigned apk -->
+    <PAClient
+      ProfileName=""
+      AndroidApkGeneration="True"
+      AndroidSign="False"
+      AaptLocation="$(SDK_PACKAGE_TOOL)"
+      SrcDir="$(APK_SrcDir)"
+      ClassesDir="$(APK_ClassesDir)"
+      ResDir="$(APK_ResDir)"
+      AssetsDir="$(APK_AssetsDir)"
+      Manifest="$(APK_ManifestDir)\AndroidManifest.xml"
+      SDKApiPath="$(SDK_APIPATH)"
+      OutputPath="$(UNSIGNED_APK_FILENAME)"
+    />
+  </Target>
+
+  <Target Name="_CheckKeyStore" Condition="'$(Platform)'=='Android'">
+    <Exec Condition="!Exists('$(DebugKeyStoreFile)') And '$(BT_BuildType)'=='Debug'"
+        Command='"$(JAVA_KEYSTORE_TOOL)" -genkey -v -keystore "$(DebugKeyStoreFile)" -storepass $(KeyStorePass) -alias $(AliasKey) -keypass $(AliasKeyPass) -dname "cn=Unnamed, ou=Mobile Organization, o=Embarcadero Technologies, l=San Francisco, s=California, c=US" -keyalg $(AndroidKeyAlg) -keysize $(AndroidKeySize) -validity $(AndroidKeyValidaty)' IgnoreExitCode="false"/>
+  </Target>
+
+  <Target Name="_AndroidSign" Condition="'$(Platform)'=='Android' And '$(KeyStoreFile)'!=''">
+    <!-- Sign Android apk and generates the signed one to be installed -->
+    <PAClient
+      ProfileName=""
+      AndroidApkGeneration="false"
+      AndroidSign="true"
+      JarSignerLocation="$(JAVA_SIGN_TOOL)"
+      UnsignedAPK="$(UNSIGNED_APK_FILENAME)"
+      SigAlg="$(KeySigAlgignment)"
+      DigestAlg="SHA1"
+      KeyStoreFile="$(KeyStoreFile)"
+      KeyStorePass="$(KeyStorePass)"
+      AliasKey="$(AliasKey)"
+      AliasKeyPass="$(AliasKeyPass)"
+      DecryptAndroidPasswords="$(DecryptPasswords)"
+    />
+  </Target>
+
+  <Target Name="_AndroidZipAlign" Condition="'$(Platform)'=='Android' And '$(KeyStoreFile)'!=''">
+    <!-- Aligns Android the signed apk file -->
+    <PAClient
+      ProfileName=""
+      AndroidApkGeneration="false"
+      AndroidSign="false"
+      AndroidZipAlign="true"
+      ZipAlignLocation="$(SDK_ALIGNMENT_TOOL)"
+      UnsignedAPK="$(UNSIGNED_APK_FILENAME)"
+      SignedAPK="$(SIGNED_APK_FILENAME)"
+      SizeAlign="4"
+    />
+  </Target>
+
+  <Target Name="__DeleteUnsignedAPKFile" Condition="'$(Platform)'=='Android' And Exists('$(SIGNED_APK_FILENAME)')">
+    <Delete Files="$(UNSIGNED_APK_FILENAME)"/>
+    <Warning Condition="'$(BT_BuildType)'=='AppStore' And '$(KeyStoreFile)'==''"
+        Text="Missing provisioning information for the &quot;Application Store&quot; platform configuration, the file '$(APK_BinDir)\$(MSBuildProjectName).apk' has been sucessfully generated but it has not been signed and it is a non-instalable package."/>
+  </Target>
+
+  <Target Name="__RenameUnsignedAPKFile"
+    Condition="('$(Platform)'=='Android' And '$(KeyStoreFile)'=='' And Exists('$(UNSIGNED_APK_FILENAME)') And !Exists('$(SIGNED_APK_FILENAME)'))">
+    <Copy
+        SourceFiles="$(UNSIGNED_APK_FILENAME)"
+        DestinationFiles="$(SIGNED_APK_FILENAME)"
+    />
+  </Target>
+
+  <Target Name="_CheckAPKFileOutputResult" Condition="'$(Platform)'=='Android'" DependsOnTargets="__RenameUnsignedAPKFile;__DeleteUnsignedAPKFile"/>
+
+
+  <!--
+  ========================================================================
+               Android Deployment Assets information file
+
+    Targets to create and include the deployedassets.txt information file
+    This file is required in order to access application resources at runtime
+
+    The file will contain all the files that are been deployed to the assets directories
+    See RS-40515.
+  ========================================================================
+  -->
+
+  <Target Name="__DetermineAssetsFileList">
+    <FindItemsByMetadata
+      Inputs="@(DeployFile)"
+      MetaDataName="RemoteDir"
+      MetaDataValue="assets"
+      ExplicitSearch="False"
+      ReplaceMetadata="True"
+      OldMetadataValue="$(APK_FolderName)"
+      NewMetadataValue="%2E"
+      >
+      <Output
+        TaskParameter="Outputs"
+        ItemName="AssetsFiles"
+      />
+    </FindItemsByMetadata>
+  </Target>
+
+  <Target Name="__CreateAssetsFileList">
+    <ItemGroup>
+      <AssetsFileList Include="%(AssetsFiles.RemoteDir)%(AssetsFiles.RemoteName)"
+        Condition="Exists(%(AssetsFiles.Identity))"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_AddDeployAssetsFile" Condition="'$(Platform)'=='Android'" DependsOnTargets="__DetermineAssetsFileList;__CreateAssetsFileList">
+    <WriteLinesToFile
+      File="$(MSBuildProjectDirectory)\deployedassets.txt"
+      Lines="@(AssetsFileList)"
+      Overwrite="true"/>
+    <!-- Add deployedassets.txt file to DeployFile item to be deployed -->
+    <ItemGroup Condition="'@(AssetsFileList)'!=''">
+        <DeployFile Include="$(MSBuildProjectDirectory)\deployedassets.txt">
+            <RemoteDir>$(APK_FolderName)\assets\deployinfo\</RemoteDir>
+        </DeployFile>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_DeleteAndroidAssetsInfoFile" Condition="'$(Platform)'=='Android'">
+    <Delete Files="$(MSBuildProjectDirectory)\deployedassets.txt" Condition="'$(KeepAssetsInfoFile)'==''"/>
+  </Target>
+
+
+  <Target Name="Deploy" DependsOnTargets="$(DeployDependsOnTargets)" Condition="'$(Platform)'=='Android'"/>
+
+</Project>

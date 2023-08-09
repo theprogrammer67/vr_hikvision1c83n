@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+ <Settings>
+      <Page Caption="Основные параметры">
+           <Group Caption="Сервер HIKVISION">
+               <Parameter Name="ServerAddress" Caption="Адрес" TypeValue="String" DefaultValue=""/>
+               <Parameter Name="ServerPort" Caption="Порт" TypeValue="Number" DefaultValue="8000"/>
+               <Parameter Name="ServerLogin" Caption="Логин" TypeValue="String" DefaultValue=""/>
+               <Parameter Name="ServerPassword" Caption="Пароль" TypeValue="String" DefaultValue=""/>
+          </Group>
+          <Group Caption="Значения по-умолчанию">
+               <Parameter Name="PanelMode" Caption="Режим панели" TypeValue="Number" DefaultValue="0">
+                  <ChoiceList>
+                      <Item Value="0">Одно окно</Item>
+                      <Item Value="1">2 * 2 окна</Item>
+                      <Item Value="2">3 * 3 окна</Item>
+                      <Item Value="3">4 * 4 окна</Item>
+                   </ChoiceList>
+               </Parameter>
+               <Parameter Name="DefFontSize" Caption="Размер шрифта" TypeValue="Number" DefaultValue="12"/>
+               <Parameter Name="DefCaptureDir" Caption="Каталог для сохранения фото/видео" TypeValue="String" DefaultValue=""/>
+               <Parameter Name="ParentWindowClass" Caption="Класс родительского окна" TypeValue="String" DefaultValue="WebViewWindowClass"/>
+          </Group>
+     </Page>
+     <Page Caption="Панель текста">
+          <Group Caption="Значения по-умолчанию">
+               <Parameter Name="DefTextPanelColorScheme" Caption="Цветовая схема (фон/шрифт)" TypeValue="Number" DefaultValue="6">
+                  <ChoiceList>
+                      <Item Value="0">Белый/Черный</Item>
+                      <Item Value="1">Красный/Черный</Item>
+                      <Item Value="2">Зеленый/Черный</Item>
+                      <Item Value="3">Синий/Черный</Item>
+                      <Item Value="4">Черный/Белый</Item>
+                      <Item Value="5">Красный/Белый</Item>
+                      <Item Value="6">Зеленый/Белый</Item>
+                      <Item Value="7">Синий/Белый</Item>
+                   </ChoiceList>
+               </Parameter>
+               <Parameter Name="DefTextPanelBrightness" Caption="Яркость %" TypeValue="Number" DefaultValue="-50"/>
+               <Parameter Name="DefTextPanelTransparency" Caption="Прозрачность %" TypeValue="Number" DefaultValue="50"/>
+               <Parameter Name="DefTextPanelTransparentBg" Caption="Прозрачный фон" TypeValue="Boolean" DefaultValue="False"/>
+               <Parameter Name="DefTextPanelPosition" Caption="Позиция" TypeValue="Number" DefaultValue="0">
+                  <ChoiceList>
+                      <Item Value="0">Слева вверху</Item>
+                      <Item Value="1">Справа вверху</Item>
+                      <Item Value="2">Справа внизу</Item>
+                      <Item Value="3">Слева внизу</Item>
+                   </ChoiceList>
+               </Parameter>
+               <Parameter Name="DefTextPanelHeight" Caption="Высота %" TypeValue="Number" DefaultValue="50"/>
+               <Parameter Name="DefTextPanelWidth" Caption="Ширина %" TypeValue="Number" DefaultValue="50"/>
+               <Parameter Name="DefTextPanelMargin" Caption="Граница" TypeValue="Number" DefaultValue="5"/>
+          </Group>
+     </Page>
+</Settings>

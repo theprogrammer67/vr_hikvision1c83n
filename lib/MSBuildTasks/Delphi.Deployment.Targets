@@ -1,0 +1,33 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+     <PropertyGroup>
+        <DeployDependsOnTargets>__CorrectDeployFilesAccordingToOutputDir;$(DeployDependsOnTargets)</DeployDependsOnTargets>
+    </PropertyGroup>
+    <Target Name="__CorrectDeployFilesAccordingToOutputDir">
+        <Message Text="%(DeployFile.Identity): %(DeployFile.DeployClass): %(DeployFile.NewExeOutput)" Condition="'$(_Debug)'!=''"/>
+            <ItemGroup>
+                <DeployFile Include="@(DeployFile->'$(DCC_ExeOutput)\%(Filename)%(Extension)')"
+                    Condition="
+                        '%(DeployFile.DeployClass)'=='ProjectAndroidManifest'
+                        Or '%(DeployFile.DeployClass)'=='AndroidSplashStyles'
+                        Or '%(DeployFile.DeployClass)'=='AndroidSplashImageDef'
+                        Or '%(DeployFile.DeployClass)'=='AndroidClassesDexFile'
+                        Or ('%(DeployFile.Extension)'=='.so'
+                            And ('%(DeployFile.DeployClass)'=='ProjectOutput'
+                                Or '%(DeployFile.DeployClass)'=='AndroidServiceOutput'))">
+                    <NewExeOutput>true</NewExeOutput>
+                </DeployFile>
+                <DeployFile Remove="@(DeployFile)"
+                    Condition="('%(DeployFile.NewExeOutput)'!='true')
+                        And (
+                            '%(DeployFile.DeployClass)'=='ProjectAndroidManifest'
+                            Or '%(DeployFile.DeployClass)'=='AndroidSplashStyles'
+                            Or '%(DeployFile.DeployClass)'=='AndroidSplashImageDef'
+                            Or '%(DeployFile.DeployClass)'=='AndroidClassesDexFile'
+                            Or ('%(DeployFile.Extension)'=='.so'
+                                And ('%(DeployFile.DeployClass)'=='ProjectOutput'
+                                    Or '%(DeployFile.DeployClass)'=='AndroidServiceOutput')))">
+                </DeployFile>
+           </ItemGroup>
+           <Message Text="%(DeployFile.Identity): %(DeployFile.DeployClass): %(DeployFile.NewExeOutput)" Condition="'$(_Debug)'!=''"/>
+    </Target>
+</Project>

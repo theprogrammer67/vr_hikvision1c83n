@@ -1,0 +1,15 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003'>
+    <Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" Condition="Exists('$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets')" />
+
+    <Target Name="PrepareVersionFile" Returns="$(VersionMajor);$(VersionMinor);$(VersionRelease)">
+        <WriteLinesToFile File="$(VersionFile)" Lines="$(Version)" Overwrite="true" Encoding="Unicode"/>
+
+        <MSBuild.Community.Tasks.Version VersionFile="$(VersionFile)" BuildType="None" RevisionType="None">
+            <Output TaskParameter="Major" PropertyName="VersionMajor" />
+            <Output TaskParameter="Minor" PropertyName="VersionMinor" />
+            <Output TaskParameter="Build" PropertyName="VersionRelease" />
+            <Output TaskParameter="Revision" PropertyName="VersionRevision" />
+            <Output TaskParameter="Revision" PropertyName="VersionBuild" />
+        </MSBuild.Community.Tasks.Version>
+    </Target>
+</Project>

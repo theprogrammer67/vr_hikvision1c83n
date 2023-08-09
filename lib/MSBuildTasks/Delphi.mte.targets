@@ -1,0 +1,74 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+	<Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" />
+	<Import Project="$(MSBuildThisFileDirectory)Delphi.Publish.targets" Condition="Exists('$(MSBuildThisFileDirectory)Delphi.Publish.targets')"/>
+
+	<PropertyGroup>
+		<PublishDependsOn Condition="'$(DoNotSignOnPublish)' == '' or ('$(DoNotSignOnPublish)' == 'false' or '$(DoNotSignOnPublish)' == '0')">Sign;BuildMte</PublishDependsOn>
+		<OutputMteName Condition="'$(OutputMteName)'==''">$(OUTPUTNAME)</OutputMteName>
+		<MtePath>$(DCC_ExeOutput)\$(OutputMteName).mte</MtePath>
+    </PropertyGroup>
+
+	<Target Name="BuildMte">		
+		<PropertyGroup>
+			<MteInstallTemplateFile Condition="'$(MteInstallTemplateFile)'==''">install.tmpl.xml</MteInstallTemplateFile>
+			<FileVersionFile>FileVersion.txt</FileVersionFile>
+			<MteInstallFile>install.xml</MteInstallFile>
+		</PropertyGroup>
+		
+		<Message Text="MtePath: $(MtePath)" />
+
+		<Error Text="FileVersion is not set" Condition="'$(FileVersion)' == ''"/>
+		<Error Text="Template not found" Condition="!Exists('$(MteInstallTemplateFile)')"/>
+		<Error Text="ASSERT: DCC_ExeOutput is not defined" Condition="'$(DCC_ExeOutput)' == ''"/>
+		<WriteLinesToFile  
+            File="$(FileVersionFile)"  
+            Lines="$(FileVersion)"  
+            Overwrite="true"/>
+
+		<Version VersionFile="$(FileVersionFile)" BuildType="None" RevisionType="None">
+			<Output TaskParameter="Major" PropertyName="VersionMajor" />
+			<Output TaskParameter="Minor" PropertyName="VersionMinor" />
+			<Output TaskParameter="Revision" PropertyName="VersionRevision" />
+		</Version>
+
+		<ItemGroup>
+			<MTE_Tokens Include="MajorVersion">
+				<ReplacementValue>$(VersionMajor)</ReplacementValue>
+			</MTE_Tokens>
+			<MTE_Tokens Include="MinorVersion">
+				<ReplacementValue>$(VersionMinor)</ReplacementValue>
+			</MTE_Tokens>
+			<MTE_Tokens Include="Revision">
+				<ReplacementValue>$(VersionRevision)</ReplacementValue>
+			</MTE_Tokens>
+		</ItemGroup>
+		<MSBuild.Community.Tasks.TemplateFile Template="$(MteInstallTemplateFile)" TemplateEncoding="UTF-16" OutputFilename="$(DCC_ExeOutput)\$(MteInstallFile)" Tokens="@(MTE_Tokens)"/>
+		<Delete Files="$(FileVersionFile)" />
+		
+		<Copy Condition="'$(MteAdditionalFiles)'!=''" SourceFiles="$(MteAdditionalFiles)" DestinationFolder="$(DCC_ExeOutput)"/>
+
+		<ItemGroup>
+			<ZipFiles Include="$(DCC_ExeOutput)\*.*" Exclude="$(DCC_ExeOutput)\*.mte;unreleased.md"/>  
+		</ItemGroup>
+		<MSBuild.Community.Tasks.Zip WorkingDirectory="$(DCC_ExeOutput)" Files="@(ZipFiles)" ZipFileName="$(MtePath)" />
+		<Delete Files="@(ZipFiles)" ContinueOnError="WarnAndContinue" />
+	</Target>
+
+	<Target Name="PublishMte">
+		<Error Text="PublishDirectory is not set" Condition="'$(PublishDirectory)' == ''"/>
+		<Error Text="MtePath is not set" Condition="'$(MtePath)' == ''"/>
+		<Copy SourceFiles="$(MtePath)" DestinationFolder="$(PublishDirectory)"/>
+	</Target>
+
+	<Target Name="Publish" DependsOnTargets="$(PublishDependsOn);Generate-Changelog">
+		<Error Text="PublishDirectory is not set" Condition="'$(PublishDirectory)' == ''"/>
+		<PropertyGroup>
+			<PublishSource Condition="'$(PublishSource)'==''">$(MtePath)</PublishSource>
+		</PropertyGroup>
+
+		<MSBuild Projects ="$(MSBuildProjectFullPath)"
+             Properties="PublishSource=$(PublishSource);ExternalCall=1;PublishDirectory=$(PublishDirectory)"
+             Targets="_Publish" />
+	</Target>
+</Project>

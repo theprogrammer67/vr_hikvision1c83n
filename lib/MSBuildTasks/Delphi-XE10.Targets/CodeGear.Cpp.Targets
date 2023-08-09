@@ -1,0 +1,3627 @@
+<!--
+===============================================================================================
+
+  CodeGear.Cpp.Targets
+
+  WARNING
+
+  DO NOT MODIFY unless you have made a backup of these files.  Modifying
+  this file unless you have knowledge about MSBuild you could cause problems
+  when loading or building projects in the IDE or building from the
+  command-line.
+
+===============================================================================================
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Make">
+
+  <Import Project="$(BDS)\bin\CodeGear.Common.Targets" Condition="Exists('$(BDS)\bin\CodeGear.Common.Targets')"/>
+  <Import Project="$(BDS)\bin\CodeGear.Idl.Targets" Condition="Exists('$(BDS)\bin\CodeGear.Idl.Targets')"/>
+  <Import Project="$(BDS)\bin\CodeGear.Deployment.Targets" Condition="Exists('$(BDS)\bin\CodeGear.Deployment.Targets')"/>
+
+  <UsingTask TaskName="BCC32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="BRCC32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="TASM32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="DCC" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Delphi.dll"/>
+  <UsingTask TaskName="ILINK32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="LD" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="TLIB" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="CPP32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="CLANG" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="InvokeMSBuild" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="DependencyCheck" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="BccDependencyCheck" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="CopyItem" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="ItemSort" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+  <UsingTask TaskName="CreateTempDpr" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Cpp.dll"/>
+  <UsingTask TaskName="MessageMap" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+
+
+  <!-- Build Target Dependencies -->
+  <PropertyGroup>
+    <PreBuildEventDependsOn>
+      _ResolveInput;
+      _ResolveOutput;
+    </PreBuildEventDependsOn>
+    <PreLinkEventDependsOn>
+      _ResolveInput;
+      _ResolveOutput;
+    </PreLinkEventDependsOn>
+    <PostBuildEventDependsOn>
+      _ResolveInput;
+      _ResolveOutput;
+    </PostBuildEventDependsOn>
+    <RcCompileDependsOnTargets>_RcDepCheck;</RcCompileDependsOnTargets>
+    <DependencyCheckDependsOnTargets>
+      _PasDepCheck;
+      _RidlDepCheck;
+      _CppDepCheck;
+      _PCHDepCheck;
+      _AsmDepCheck;
+      $(RcCompileDependsOnTargets);
+    </DependencyCheckDependsOnTargets>
+    <MakeDependsOnTargets>
+      $(MakeDependsOnTargets);
+      _CheckPlatformVariable;
+      _MakePreReq;
+      _ResolveOutput;
+      CreateDirectories;
+      BuildClassesDex;
+      BuildAndroidServiceJarFile;
+      _RunUserTools;
+      PreBuildEvent;
+      _PreOutputTimeStamp;
+      MakeObjs;
+      Link;
+      _PostOutputTimeStamp;
+      MakeStaticPackage;
+      PostBuildEvent;
+      GeniOSDevice32Outputs
+    </MakeDependsOnTargets>
+    <BuildDependsOnTargets>
+      _ForceRebuild;
+      CleanLinkerStateFiles;
+      $(MakeDependsOnTargets);
+      AutoIncBuildNumber
+    </BuildDependsOnTargets>
+    <MakeOneDependsOnTargets>
+      $(MakeOneDependsOnTargets);
+      _ResolveConfiguration;
+      _MakeOnePreReq;
+      _ResolveInput;
+      _ResolveFileToCompile;
+      CreateDirectories;
+      PreBuildEvent;
+      _PreOutputTimeStamp;
+      _MakeOne;
+      _PostOutputTimeStamp;
+      PostBuildEvent;
+    </MakeOneDependsOnTargets>
+    <BuildOneDependsOnTargets>
+      _ForceRebuild;
+      $(MakeOneDependsOnTargets);
+    </BuildOneDependsOnTargets>
+    <LinkDependsOnTargets Condition="'$(_SkipLink)'!='true'">
+      $(LinkDependsOnTargets);
+      _ResolveOutput;
+      CreateDirectories;
+      PreLinkEvent;
+      _PerformLink;
+    </LinkDependsOnTargets>
+    <CoreCompileDependsOnTargets Condition="'$(BCC_EnableBatchCompilation)'!='true'">
+      RidlCompile;
+      PasCompile;
+      CppCompile;
+      AsmCompile;
+      RcCompile;
+    </CoreCompileDependsOnTargets>
+    <CoreCompileDependsOnTargets Condition="'$(BCC_EnableBatchCompilation)'=='true'">
+      RidlCompile;
+      PasCompile;
+      CppBatchCompile;
+      AsmCompile;
+      RcCompile;
+    </CoreCompileDependsOnTargets>
+    <CleanDependsOnTargets>
+      CleanOutputFiles;
+      CleanAndroidApkRootDir;
+      CleanLinkOutput;
+      StaticPackageClean;
+      CleanPredexedJars;
+      CleanJavaClassesOutputDir;
+      CleaniOSDevice32Outputs
+    </CleanDependsOnTargets>
+    <_ResolveOutputDependsOn Condition="'$(FileToCompile)'==''">
+       BuildShouldBuildVersion;
+      _ResolveIcons;
+      _ResolveCompiledOutput;
+      _ResolveOther;
+    </_ResolveOutputDependsOn>
+    <_ResolveOutputDependsOn Condition="'$(FileToCompile)'!=''">
+      _ResolveFileToCompile;
+    </_ResolveOutputDependsOn>
+    <PreprocessDependsOnTargets>
+      _CheckPlatformVariable;
+      $(PreprocessDependsOnTargets);
+      _ResolveInput;
+    </PreprocessDependsOnTargets>
+    <_EvaluatePropertyDependsOnTargets>
+      _ResolveInput;
+      _ResolveOutput;
+    </_EvaluatePropertyDependsOnTargets>
+    <_EvaluateItemDependsOnTargets>
+      $(_EvaluatePropertyDependsOnTargets)
+    </_EvaluateItemDependsOnTargets>
+    <_EvaluateOutputsDependsOnTargets>
+      $(_EvaluatePropertyDependsOnTargets);
+      _GatherOutputs;
+    </_EvaluateOutputsDependsOnTargets>
+    <_ResolveGENTLBBindingsTarget>
+      _ResolveGENTLBBindings;
+    </_ResolveGENTLBBindingsTarget>
+  </PropertyGroup>
+
+  <!-- Project invariants -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cOSX32Platform)'">
+      <StartupObjConsole>start.o</StartupObjConsole>
+      <StartupObjGui>start.o</StartupObjGui>
+      <StartupObjGui Condition="'$(FrameworkType)'=='FMX'">start_fmx.o</StartupObjGui>
+      <StartupObjLibrary>start_dylib.o</StartupObjLibrary>
+      <StartupObjPackage>start_pkg.o</StartupObjPackage>
+      <ILinkTarget>-Tm</ILinkTarget>
+      <CommonLibraries>libcgunwind.1.0.dylib;libSystem.B.dylib;libiconv.dylib;libmathcommon.A.dylib;libobjc.A.dylib;libpcre.dylib;libz.dylib</CommonLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='$(cWin32Platform)'">
+      <StartupObjConsole Condition="'$(StartupObjConsole)'==''">c0x32</StartupObjConsole>
+      <StartupObjGui Condition="'$(FrameworkType)'!='FMX' And '$(StartupObjGui)'==''">c0w32</StartupObjGui>
+      <StartupObjGui Condition="'$(FrameworkType)'=='FMX' And '$(StartupObjGui)'==''">c0fmx32</StartupObjGui>
+      <StartupObjLibrary Condition="'$(StartupObjLibrary)'==''">c0d32</StartupObjLibrary>
+      <StartupObjPackage Condition="'$(StartupObjPackage)'==''">c0pkg32</StartupObjPackage>
+      <ILinkTarget>-Tp</ILinkTarget>
+      <CommonLibraries Condition="'$(CommonLibraries)'==''">import32.lib</CommonLibraries>
+      <!-- Default to Classic (Borland) BCC32 -->
+      <BCC_UseClassicCompiler Condition="'$(BCC_UseClassicCompiler)'==''">true</BCC_UseClassicCompiler>
+      <USING_CLANG_WIN32 Condition="'$(Platform)'=='$(cWin32Platform)' And '$(BCC_UseClassicCompiler)'=='false'">true</USING_CLANG_WIN32>
+      <USING_CLANG_WIN32 Condition="'$(Platform)'=='$(cWin32Platform)' And '$(UseClang32Compiler)'=='true'">true</USING_CLANG_WIN32>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='$(cWin64Platform)'">
+      <StartupObjConsole>c0x64</StartupObjConsole>
+      <StartupObjGui>c0w64</StartupObjGui>
+      <StartupObjGui Condition="'$(FrameworkType)'=='FMX'">c0fmx64</StartupObjGui>
+      <StartupObjLibrary>c0d64</StartupObjLibrary>
+      <StartupObjPackage>c0pkg64</StartupObjPackage>
+      <ILinkTarget>-Tp</ILinkTarget>
+      <CommonLibraries>import64.a</CommonLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+      <StartupObjConsole>start_ios_main.o</StartupObjConsole>
+      <StartupObjGui>start_ios.o</StartupObjGui>
+      <StartupObjGui Condition="'$(FrameworkType)'=='FMX'">start_ios.o</StartupObjGui>
+      <StartupObjLibrary></StartupObjLibrary>
+      <StartupObjPackage></StartupObjPackage>
+      <EndCodeObj>end_ios.o</EndCodeObj>
+      <ILinkTarget></ILinkTarget>
+      <CommonLibraries></CommonLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <StartupObjConsole>$(NDKApiPath)\arch-arm\usr\lib\crtbegin_so.o</StartupObjConsole>
+      <StartupObjGui>$(NDKApiPath)\arch-arm\usr\lib\crtbegin_so.o</StartupObjGui>
+      <StartupObjGui Condition="'$(FrameworkType)'=='FMX'">$(NDKApiPath)\arch-arm\usr\lib\crtbegin_so.o</StartupObjGui>
+      <StartupObjLibrary></StartupObjLibrary>
+      <StartupObjPackage></StartupObjPackage>
+      <EndCodeObj>$(NDKApiPath)\arch-arm\usr\lib\crtend_so.o</EndCodeObj>
+      <ILinkTarget></ILinkTarget>
+      <CommonLibraries></CommonLibraries>
+  </PropertyGroup>
+
+
+  <!-- Map old C++-specific $(ProjectType) to new $(AppType) common variable -->
+  <Choose>
+    <When Condition="'$(ProjectType)'=='CppPackage'">
+      <PropertyGroup>
+        <AppType>Package</AppType>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(ProjectType)'=='CppConsoleApplication' Or '$(ProjectType)'=='CppManagedConsoleApp'">
+      <PropertyGroup>
+        <AppType>Console</AppType>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(ProjectType)'=='CppDynamicLibrary'
+      Or '$(ProjectType)'=='CppActiveLibrary'
+      Or '$(ProjectType)'=='VCppStyleDLL'
+      Or '$(ProjectType)'=='CppManagedDynamicLibrary'">
+      <PropertyGroup>
+        <AppType>Library</AppType>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(ProjectType)'=='CppStaticLibrary'">
+      <PropertyGroup>
+        <AppType>StaticLibrary</AppType>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup Condition="'$(AppType)'==''">
+        <AppType>Application</AppType>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <Choose>
+    <When Condition="'$(AppType)'=='Package'">
+      <PropertyGroup>
+        <StartupObj>$(StartupObjPackage)</StartupObj>
+        <BCC_GenerateDLL Condition="'$(Platform)'=='$(cWin32Platform)'">true</BCC_GenerateDLL>
+        <BCC_GeneratePackage Condition="('$(Platform)'=='$(cWin64Platform)' Or '$(USING_CLANG_WIN32)'=='true') And '$(_DoingStaticPackageBuild)'!='true'">true</BCC_GeneratePackage>
+        <ILINK_AppType Condition="'$(Platform)'=='$(cWin32Platform)'">Windows</ILINK_AppType>
+        <ILinkTarget>$(ILinkTarget)p</ILinkTarget>
+        <UsingDelphiRTL>true</UsingDelphiRTL>
+        <Multithreaded>true</Multithreaded>
+        <UsePackages>true</UsePackages>
+        <OutputExt Condition="'$(OutputExt)'==''">$(BplExt)</OutputExt>
+        <ILINK_PackageType Condition="'$(DesignOnlyPackage)'=='true'">Designtime</ILINK_PackageType>
+        <ILINK_PackageType Condition="'$(RuntimeOnlyPackage)'=='true'">Runtime</ILINK_PackageType>
+        <ILINK_PackageType Condition="'$(ILINK_PackageType)'==''">Both</ILINK_PackageType>
+        <DCC_CBuilderOutput Condition="'$(DCC_CBuilderOutput)'=='All'">JPHNE</DCC_CBuilderOutput>
+        <DCC_CBuilderOutput Condition="'$(_DoingStaticPackageBuild)'=='true'">JPHN</DCC_CBuilderOutput>
+        <BCC_OutputDir Condition="'$(BCC_OutputDir)'!='' And !HasTrailingSlash('$(BCC_OutputDir)')">$(BCC_OutputDir)\</BCC_OutputDir>
+        <BCC_OutputDir Condition="'$(_DoingStaticPackageBuild)'=='true'">$(BCC_OutputDir)staticobjs</BCC_OutputDir>
+        <TLibLink Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)' Or '$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(cAndroidPlatform)'">true</TLibLink>
+        <DllPrefix>$(BplPlatformPrefix)</DllPrefix>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(AppType)'=='Console'">
+      <PropertyGroup>
+        <StartupObj>$(StartupObjConsole)</StartupObj>
+        <BCC_GenerateConsoleApp>true</BCC_GenerateConsoleApp>
+        <ILINK_AppType Condition="'$(Platform)'=='$(cWin32Platform)'">Console</ILINK_AppType>
+        <ILinkTarget>$(ILinkTarget)e</ILinkTarget>
+        <OutputExt Condition="'$(OutputExt)'==''">$(ExeExt)</OutputExt>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(AppType)'=='Library'">
+      <PropertyGroup>
+        <StartupObj>$(StartupObjLibrary)</StartupObj>
+        <BCC_GenerateDLL>true</BCC_GenerateDLL>
+        <ILinkTarget>$(ILinkTarget)d</ILinkTarget>
+        <OutputExt Condition="'$(OutputExt)'==''">$(DllExt)</OutputExt>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(AppType)'=='StaticLibrary'">
+      <PropertyGroup>
+        <StartupObj></StartupObj>
+        <ILINK_AdditionalLibs></ILINK_AdditionalLibs>
+        <BCC_GenerateWindowsApp Condition="'$(Platform)'=='$(cWin32Platform)'">true</BCC_GenerateWindowsApp>
+        <OutputExt Condition="'$(OutputExt)'==''">$(LibExt)</OutputExt>
+        <DllPrefix>$(StaticLibPrefix)</DllPrefix>
+        <TLibLink>true</TLibLink>
+      </PropertyGroup>
+    </When>
+    <Otherwise> <!-- Other GUI application -->
+      <PropertyGroup>
+        <StartupObj>$(StartupObjGui)</StartupObj>
+        <BCC_GenerateWindowsApp Condition="'$(Platform)'=='$(cWin32Platform)' or '$(Platform)'=='$(cWin64Platform)'">true</BCC_GenerateWindowsApp>
+        <ILINK_WinAppType>Executable</ILINK_WinAppType>
+        <ILINK_AppType Condition="'$(Platform)'=='$(cWin32Platform)' or '$(Platform)'=='$(cWin64Platform)'">Windows</ILINK_AppType>
+        <ILinkTarget>$(ILinkTarget)e</ILinkTarget>
+        <OutputExt Condition="'$(OutputExt)'==''">$(ExeExt)</OutputExt>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <!-- RTL, MT, VCL Settings -->
+
+  <PropertyGroup>
+    <!-- Property to indicate Compiler/Linker in use -->
+    <USING_CLANG Condition="'$(USING_CLANG)'==''">false</USING_CLANG>
+    <USING_CLANG Condition="'$(Platform)'=='$(cWin64Platform)'
+        Or '$(Platform)'=='$(ciOSSimulatorPlatform)'
+        Or '$(Platform)'=='$(ciOSDevice32Platform)'
+        Or '$(Platform)'=='$(ciOSDevice64Platform)'
+        Or '$(Platform)'=='$(cAndroidPlatform)'
+        Or '$(USING_CLANG_WIN32)'=='true'">true</USING_CLANG>
+
+    <NO_LINK  Condition="'$(NO_LINK)'=='' ">false</NO_LINK>
+    <USING_LD Condition="'$(Platform)'=='$(cAndroidPlatform)' Or '$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">true</USING_LD>
+    <USING_LD Condition="'$(USING_LD)'==''">false</USING_LD>
+
+    <UsingDelphiRTL Condition="'$(FrameworkType)'=='VCL' Or '$(FrameworkType)'=='FMX'">true</UsingDelphiRTL>
+    <!-- Special flag for Win64 Console App linking to Delphi Runtime -->
+    <ConWin64DelphiRTL Condition="'$(AppType)'=='Console' And '$(Platform)'=='$(cWin64Platform)' And '$(UsingDelphiRTL)'=='true'">true</ConWin64DelphiRTL>
+  </PropertyGroup>
+
+  <!-- Force C++ RTL and Packages to match (be both static or dynamic) for Win64 -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cWin64Platform)' And '$(UsePackages)'!=''">
+    <DynamicRTL>$(UsePackages)</DynamicRTL>
+  </PropertyGroup>
+
+  <!-- But static objects of Package use static RTL -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cWin64Platform)' And '$(_DoingStaticPackageBuild)'=='true'">
+    <DynamicRTL>false</DynamicRTL>
+  </PropertyGroup>
+
+  <!-- TODO:JuanR Refactoring is needed here to use a simpliest condition and have all this options under the same property group -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cAndroidPlatform)' Or '$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+    <DynamicRTL>false</DynamicRTL>
+    <UsePackages>false</UsePackages>
+    <CLANG_BorlandAutoRefCount>true</CLANG_BorlandAutoRefCount>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RTLE Condition="'$(Platform)'=='$(cWin32Platform)' And '$(USING_CLANG_WIN32)'=='true'">rtle.lib</RTLE>
+    <RTLE Condition="'$(Platform)'=='$(cWin32Platform)' And '$(USING_CLANG_WIN32)'!='true'">vcle.lib</RTLE>
+    <RTLE Condition="'$(RTLE)'==''">rtle.a</RTLE>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(UsingDelphiRTL)'=='true' And '$(AppType)'!='Package' And '$(ConWin64DelphiRTL)'!='true'">
+    <DelphiRTLLibs Condition="'$(LinkPackageStatics)'=='' And '$(UsePackages)'!='true' And '$(Platform)'=='$(cOSX32Platform)'">$(RTLE);rtl.a</DelphiRTLLibs>
+    <DelphiRTLLibs Condition="'$(LinkPackageImports)'=='' And '$(UsePackages)'=='true' And '$(Platform)'=='$(cOSX32Platform)'">$(RTLE)</DelphiRTLLibs>
+    <DelphiRTLLibs Condition="'$(LinkPackageStatics)'=='' And '$(UsePackages)'!='true' And '$(Platform)'=='$(cWin32Platform)'">$(RTLE);rtl.lib</DelphiRTLLibs>
+    <DelphiRTLLibs Condition="'$(LinkPackageImports)'=='' And '$(UsePackages)'=='true' And '$(Platform)'=='$(cWin32Platform)'">$(RTLE)</DelphiRTLLibs>
+    <DelphiRTLLibs Condition="'$(LinkPackageStatics)'=='' And '$(UsePackages)'!='true' And '$(Platform)'=='$(cWin64Platform)'">$(RTLE);rtl.a</DelphiRTLLibs>
+    <DelphiRTLLibs Condition="'$(LinkPackageImports)'=='' And '$(UsePackages)'=='true' And '$(Platform)'=='$(cWin64Platform)'">$(RTLE)</DelphiRTLLibs>
+    <DelphiRTLBpis Condition="'$(LinkPackageImports)'=='' And '$(UsePackages)'=='true'">rtl.bpi</DelphiRTLBpis>
+  </PropertyGroup>
+
+  <!-- WIN64 Console apps linking to the Delphi runtime must ensure C++ and Delphi are both static or dynamic -->
+  <PropertyGroup Condition="'$(UsingDelphiRTL)'=='true' And '$(ConWin64DelphiRTL)'=='true'">
+    <DelphiRTLLibs Condition="'$(LinkPackageStatics)'=='' And '$(DynamicRTL)'=='true'">$(RTLE)</DelphiRTLLibs>
+    <DelphiRTLBpis Condition="'$(LinkPackageImports)'=='' And '$(DynamicRTL)'=='true'">rtl.bpi</DelphiRTLBpis>
+    <DelphiRTLLibs Condition="'$(LinkPackageStatics)'=='' And '$(DynamicRTL)'!='true'">rtl.a;$(RTLE)</DelphiRTLLibs>
+    <DelphiRTLBpis Condition="'$(LinkPackageImports)'=='' And '$(DynamicRTL)'!='true'"></DelphiRTLBpis>
+  </PropertyGroup>
+
+  <Choose>
+    <When Condition="'$(DynamicRTL)'=='true' And '$(UsingDelphiRTL)'=='true'">
+      <PropertyGroup>
+        <RTLLib Condition="'$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cOSX32Platform)'">cp32mti.lib</RTLLib>
+        <RTLLib Condition="'$(Platform)'=='$(cWin64Platform)'">cp64mti.a</RTLLib>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin32Platform)'">$(CommonLibraries);$(RTLLib)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin64Platform)'">$(CommonLibraries);$(RTLLib)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">libcgcrtl.dylib;libcgcrtl_nonshared.a;libcgstl.dylib;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <BCC_InternalDefines Condition="'$(BCC_InternalDefines)'!=''">$(BCC_InternalDefines)</BCC_InternalDefines>
+        <BCC_InternalDefines Condition="'$(_DoingStaticPackageBuild)'!='true'">$(BCC_InternalDefines)</BCC_InternalDefines>
+        <BCC_GenerateMultithreaded Condition="'$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cWin64Platform)'">true</BCC_GenerateMultithreaded>
+        <ILINK_AdditionalObjs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cWin32Platform)'">memmgr.lib;sysinit.obj</ILINK_AdditionalObjs>
+        <ILINK_AdditionalObjs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">delphi.o</ILINK_AdditionalObjs>
+        <ILINK_AdditionalObjs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cWin64Platform)'">memmgr.a;sysinit.o</ILINK_AdditionalObjs>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(DynamicRTL)'!='true' And '$(UsingDelphiRTL)'=='true'">
+      <PropertyGroup>
+        <RTLLib Condition="'$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cOSX32Platform)'">cp32mt.lib</RTLLib>
+        <RTLLib Condition="'$(Platform)'=='$(cWin64Platform)'">cp64mt.a</RTLLib>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin32Platform)'">$(CommonLibraries);$(RTLLib)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">libcgcrtl.a;libcgstl.a;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin64Platform)'">$(CommonLibraries);$(RTLLib)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSDevice32Platform)'">rtlhelper;c++;stdc++;System;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSDevice64Platform)'">rtlhelper;c++;stdc++;System;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSSimulatorPlatform)'">compiler_rt;stdc++;System;rtlhelper;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <!-- STLPort
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cAndroidPlatform)'">cgcrtl;pcre;dl;c;m;rtlhelper;android;EGL;GLESv2;log;jnigraphics;GLESv1_CM;OpenSLES;stlport_static;LocalizedRTL;compiler_rt;$(CommonLibraries)</ILINK_AdditionalLibs>
+        -->
+        <!-- GNUSTL -->
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cAndroidPlatform)'">cgcrtl;pcre;dl;c;m;rtlhelper;android;EGL;GLESv2;log;jnigraphics;GLESv1_CM;OpenSLES;gnustl_static;LocalizedRTL;compiler_rt;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <BCC_GenerateMultithreaded Condition="'$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cWin64Platform)'">true</BCC_GenerateMultithreaded>
+        <ILINK_AdditionalObjs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cWin32Platform)'">memmgr.lib;sysinit.obj</ILINK_AdditionalObjs>
+        <ILINK_AdditionalObjs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">delphi.o</ILINK_AdditionalObjs>
+        <ILINK_AdditionalObjs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cWin64Platform)'">memmgr.a;sysinit.o</ILINK_AdditionalObjs>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(DynamicRTL)'=='true' And '$(Multithreaded)'=='true' And '$(UsingDelphiRTL)'!='true'">
+      <PropertyGroup>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin32Platform)'">$(CommonLibraries);cw32mti.lib</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin64Platform)'">$(CommonLibraries);cw64mti.a</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">libcgcrtl.dylib;libcgcrtl_nonshared.a;libcgstl.dylib;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <BCC_InternalDefines Condition="'$(BCC_InternalDefines)'!=''">$(BCC_InternalDefines);</BCC_InternalDefines>
+        <BCC_InternalDefines Condition="'$(_DoingStaticPackageBuild)'!='true'">$(BCC_InternalDefines)</BCC_InternalDefines>
+        <BCC_GenerateMultithreaded Condition="'$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cWin64Platform)'">true</BCC_GenerateMultithreaded>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(DynamicRTL)'!='true' And '$(Multithreaded)'=='true' AND '$(UsingDelphiRTL)'!='true'">
+      <PropertyGroup>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin32Platform)'">$(CommonLibraries);cw32mt.lib</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin64Platform)'">$(CommonLibraries);cw64mt.a</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">libcgcrtl.a;libcgstl.a;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSDevice32Platform)'">rtlhelper;c++;stdc++;System;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSDevice64Platform)'">rtlhelper;c++;stdc++;System;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSSimulatorPlatform)'">compiler_rt;stdc++;System;rtlhelper;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <!-- STLPort
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cAndroidPlatform)'">cgcrtl;pcre;dl;c;m;rtlhelper;android;EGL;GLESv2;log;jnigraphics;GLESv1_CM;OpenSLES;stlport_static;LocalizedRTL;compiler_rt;$(CommonLibraries)</ILINK_AdditionalLibs>
+        -->
+        <!-- GNU STL -->
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cAndroidPlatform)'">cgcrtl;pcre;dl;c;m;rtlhelper;android;EGL;GLESv2;log;jnigraphics;GLESv1_CM;OpenSLES;gnustl_static;LocalizedRTL;compiler_rt;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <BCC_GenerateMultithreaded Condition="'$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cWin64Platform)'">true</BCC_GenerateMultithreaded>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(DynamicRTL)'=='true' AND '$(Multithreaded)'!='true' AND '$(UsingDelphiRTL)'!='true'">
+      <PropertyGroup>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin32Platform)'">$(CommonLibraries);cw32i.lib</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin64Platform)'">$(CommonLibraries);cw64i.a</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalObjs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">libcgcrtl.dylib;libcgcrtl_nonshared.a;libcgstl.dylib;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <BCC_InternalDefines Condition="'$(BCC_InternalDefines)'!=''">$(BCC_InternalDefines);</BCC_InternalDefines>
+        <BCC_InternalDefines Condition="'$(_DoingStaticPackageBuild)'!='true'">$(BCC_InternalDefines)</BCC_InternalDefines>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(DynamicRTL)'!='true' AND '$(Multithreaded)'!='true' AND '$(UsingDelphiRTL)'!='true'">
+      <PropertyGroup>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin32Platform)'">$(CommonLibraries);cw32.lib</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cWin64Platform)'">$(CommonLibraries);cw64.a</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cOSX32Platform)'">libcgcrtl.a;libcgstl.a;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSDevice32Platform)'">rtlhelper;c++;stdc++;System;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSDevice64Platform)'">rtlhelper;c++;stdc++;System;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(ciOSSimulatorPlatform)'">compiler_rt;stdc++;System;rtlhelper;rtle;cgcrtl;$(CommonLibraries)</ILINK_AdditionalLibs>
+        <!-- STLPort
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cAndroidPlatform)'">cgcrtl;pcre;dl;c;m;rtlhelper;android;EGL;GLESv2;log;jnigraphics;GLESv1_CM;OpenSLES;stlport_static;LocalizedRTL;compiler_rt;$(CommonLibraries)</ILINK_AdditionalLibs>
+        -->
+        <ILINK_AdditionalLibs Condition="'$(ILINK_AdditionalLibs)'=='' And '$(Platform)'=='$(cAndroidPlatform)'">cgcrtl;pcre;dl;c;m;rtlhelper;android;EGL;GLESv2;log;jnigraphics;GLESv1_CM;OpenSLES;gnustl_static;LocalizedRTL;compiler_rt;$(CommonLibraries)</ILINK_AdditionalLibs>
+      </PropertyGroup>
+    </When>
+  </Choose>
+
+<!-- Global Properties -->
+
+  <!-- Environment options -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cWin32Platform)'">
+    <CBuilderIncludePath Condition="'$(CBuilderWin32IncludePath)'!=''">$(CBuilderWin32IncludePath);$(CBuilderIncludePath)</CBuilderIncludePath>
+    <CBuilderLibraryPath Condition="'$(CBuilderWin32LibraryPath)'!=''">$(CBuilderWin32LibraryPath);$(CBuilderLibraryPath)</CBuilderLibraryPath>
+    <CBuilderBrowsingPath Condition="'$(CBuilderWin32BrowsingPath)'!=''">$(CBuilderWin32BrowsingPath);$(CBuilderBrowsingPath)</CBuilderBrowsingPath>
+    <CBuilderBPIOutputPath Condition="'$(CBuilderWin32BPIOutputPath)'!=''">$(CBuilderWin32BPIOutputPath)</CBuilderBPIOutputPath>
+    <CBuilderBPLOutputPath Condition="'$(CBuilderWin32BPLOutputPath)'!=''">$(CBuilderWin32BPLOutputPath)</CBuilderBPLOutputPath>
+  </PropertyGroup>
+  
+    <!-- CLANG_WIN32 -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cWin32Platform)' And '$(USING_CLANG_WIN32)'=='true'">
+    <CBuilderIncludePath>$(CBuilderIncludePath_Clang32)</CBuilderIncludePath>
+    <CBuilderLibraryPath>$(CBuilderLibraryPath_Clang32)</CBuilderLibraryPath>
+    <CBuilderBrowsingPath>$(CBuilderBrowsingPath_Clang32)</CBuilderBrowsingPath>
+    <CBuilderBPIOutputPath>$(CBuilderBPIOutputPath_Clang32)</CBuilderBPIOutputPath>
+    <CBuilderBPLOutputPath>$(CBuilderBPLOutputPath_Clang32)</CBuilderBPLOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Platform)'=='$(cOSX32Platform)'">
+    <DCC_SysLibRoot Condition="'$(DCC_SysLibRoot)'!=''">$(DCC_SysLibRoot);$(Profile_sysroot)</DCC_SysLibRoot>
+    <DCC_SysLibRoot Condition="'$(DCC_SysLibRoot)'==''">$(Profile_sysroot)</DCC_SysLibRoot>
+
+    <CBuilderIncludePath Condition="'$(CBuilderOSX32IncludePath)'!=''">$(CBuilderOSX32IncludePath);$(CBuilderIncludePath)</CBuilderIncludePath>
+    <CBuilderLibraryPath Condition="'$(CBuilderOSX32LibraryPath)'!=''">$(CBuilderOSX32LibraryPath);$(CBuilderLibraryPath)</CBuilderLibraryPath>
+    <!-- xlink requires package .dylibs for linking in addition to "import" libraries -->
+    <CBuilderLibraryPath Condition="'$(CBuilderOSX32BPLOutputPath)'!=''">$(CBuilderLibraryPath);$(CBuilderOSX32BPLOutputPath)</CBuilderLibraryPath>
+    <CBuilderLibraryPath Condition="'$(DelphiDllOutputPath)'!='' And '$(DelphiDllOutputPath)'!='$(CBuilderOSX32BPLOutputPath)'">$(CBuilderLibraryPath);$(DelphiDllOutputPath)</CBuilderLibraryPath>
+    <CBuilderBrowsingPath Condition="'$(CBuilderOSX32BrowsingPath)'!=''">$(CBuilderOSX32BrowsingPath);$(CBuilderBrowsingPath)</CBuilderBrowsingPath>
+    <CBuilderBPIOutputPath Condition="'$(CBuilderOSX32BPIOutputPath)'!=''">$(CBuilderOSX32BPIOutputPath)</CBuilderBPIOutputPath>
+    <CBuilderBPLOutputPath Condition="'$(CBuilderOSX32BPLOutputPath)'!=''">$(CBuilderOSX32BPLOutputPath)</CBuilderBPLOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LANGDIR Condition="'$(LANGDIR)' == 'EN'"></LANGDIR>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(Platform)'=='$(cWin32Platform)' And '$(LANGDIR)'!=''">
+    <TranslatedIncludePath Include="$(BDSINCLUDE)\windows\crtl\$(LANGDIR)"/>
+    <TranslatedIncludePath Include="$(BDSINCLUDE)\windows\rtl\$(LANGDIR)"/>
+  </ItemGroup>
+
+
+  <!--Common and Shared options-->
+  <PropertyGroup>
+    <BCC_NoLink>true</BCC_NoLink>
+    <BCC_UTF8Output>true</BCC_UTF8Output>
+    <ILINK_OSVersion Condition="'$(ILINK_OSVersion)'=='' And '$(UsingDelphiRTL)'=='true'">5.0</ILINK_OSVersion>
+    <DCC_GenerateCppFiles>true</DCC_GenerateCppFiles>
+    <ShowStdOut Condition="'$(ShowStdOut)'==''">$(ShowGeneralMessages)</ShowStdOut>
+    <!-- _TCHAR mapping for Unicode character selection -->
+    <!-- Default TCHAR to "char" for backwards compatibility -->
+    <_TCHARMapping Condition="'$(_TCHARMapping)'==''">char</_TCHARMapping>
+    <StartupObj Condition="'$(StartupObj)'!='' And '$(_TCHARMapping)'!='char' And ('$(Platform)'=='$(cWin32Platform)' Or '$(Platform)'=='$(cWin64Platform)')">$(StartupObj)w</StartupObj>
+    <ILINK_StartupObjs Condition="'$(ILINK_StartupObjs)'==''">$(StartupObj)</ILINK_StartupObjs>
+    <BCC_GenerateUnicode Condition="'$(_TCHARMapping)'!='char'">true</BCC_GenerateUnicode>
+
+    <!-- Include Paths -->
+    <DelphiLibraryPath Condition="'$(DelphiLibraryPath)'==''">$(BDSLIB)</DelphiLibraryPath>
+    <BRCC_IncludePath Condition="'$(BRCC_IncludePath)'!=''">$(BRCC_IncludePath);$(IncludePath)</BRCC_IncludePath>
+    <BRCC_IncludePath Condition="'$(BRCC_IncludePath)'==''">$(IncludePath)</BRCC_IncludePath>
+    <DCC_UnitSearchPath>$(DCC_UnitSearchPath);$(DelphiLibraryPath)</DCC_UnitSearchPath>
+    <DCC_IncludePath>$(DCC_UnitSearchPath)</DCC_IncludePath>
+    <DCC_ResourcePath>$(DCC_UnitSearchPath)</DCC_ResourcePath>
+    <DCC_ObjPath>$(DCC_UnitSearchPath)</DCC_ObjPath>
+    <TASM_IncludePath Condition="'$(TASM_IncludePath)'!=''">$(TASM_IncludePath);$(IncludePath)</TASM_IncludePath>
+    <TASM_IncludePath Condition="'$(TASM_IncludePath)'==''">$(IncludePath)</TASM_IncludePath>
+
+    <!-- Defines -->
+    <BCC_Defines Condition="'$(BCC_Defines)'!=''">$(BCC_Defines);$(Defines)</BCC_Defines>
+    <BCC_Defines Condition="'$(BCC_Defines)'==''">$(Defines)</BCC_Defines>
+    <BCC_Defines Condition="'$(WindowsVersionDefines)'!=''">$(BCC_Defines);$(WindowsVersionDefines)</BCC_Defines>
+    <BCC_InternalDefines Condition="'$(BCC_InternalDefines)'!='' And '$(UsePackages)'=='true' And '$(_DoingStaticPackageBuild)'!='true'">$(BCC_InternalDefines);USEPACKAGES</BCC_InternalDefines>
+    <BCC_InternalDefines Condition="'$(BCC_InternalDefines)'=='' And '$(UsePackages)'=='true' And '$(_DoingStaticPackageBuild)'!='true'">USEPACKAGES</BCC_InternalDefines>
+    <BRCC_Defines Condition="'$(BRCC_Defines)'!=''">$(BRCC_Defines);$(Defines)</BRCC_Defines>
+    <BRCC_Defines Condition="'$(BRCC_Defines)'==''">$(Defines)</BRCC_Defines>
+    <DCC_Define Condition="'$(DCC_Define)'!=''">$(DCC_Define);$(Defines)</DCC_Define>
+    <DCC_Define Condition="'$(DCC_Define)'==''">$(Defines)</DCC_Define>
+    <TASM_Defines Condition="'$(TASM_Defines)'!=''">$(TASM_Defines);$(Defines)</TASM_Defines>
+    <TASM_Defines Condition="'$(TASM_Defines)'==''">$(Defines)</TASM_Defines>
+    <BCC_Undefines Condition="'$(_DoingStaticPackageBuild)'=='true'">USEPACKAGES</BCC_Undefines>
+
+    <!-- Output Directories and Filenames -->
+    <OutputName Condition="'$(OutputName)'==''">$(MSBuildProjectName)</OutputName>
+    <OutputExt Condition="'$(OutputExt)'!=''">.$(OutputExt)</OutputExt>
+    <ILINK_PackageBaseName Condition="'$(AppType)'=='Package'">$(OutputName)</ILINK_PackageBaseName>
+    <IntermediateOutputDir Condition="'$(IntermediateOutputDir)'!='' And !HasTrailingSlash('$(IntermediateOutputDir)')">$(IntermediateOutputDir)\</IntermediateOutputDir>
+    <FinalOutputDir Condition="'$(FinalOutputDir)'=='' And '$(AppType)'=='Package'">$(CBuilderBPLOutputPath)</FinalOutputDir>
+    <FinalOutputDir Condition="'$(FinalOutputDir)'==''">$(IntermediateOutputDir)</FinalOutputDir>
+    <FinalOutputDir Condition="'$(FinalOutputDir)'!='' And !HasTrailingSlash('$(FinalOutputDir)')">$(FinalOutputDir)\</FinalOutputDir>
+    <DllVersion Condition="'$(DllVersion)'!=''">.$(DllVersion)</DllVersion>
+    <DllPrefix Condition="'$(DllPrefix)'=='' And ('$(Platform)'=='$(cAndroidPlatform)' And '$(AppType)'=='Application')">$(DllPlatformPrefix)</DllPrefix>
+    <DllPrefix Condition="'$(DllPrefix)'=='' And '$(AppType)'=='Library'">$(DllPlatformPrefix)</DllPrefix>
+    <DllPrefix Condition="'$(DllPrefix)'=='' And '$(AppType)'=='Package'">$(BplPlatformPrefix)</DllPrefix>
+    <FinalOutput Condition="'$(FinalOutput)'==''">$(FinalOutputDir)$(DllPrefix)$(OutputName)$(DllSuffix)$(OutputExt)$(DllVersion)</FinalOutput>
+
+    <ILINK_BpiLibOutputDir>$(BPILibOutputDir)</ILINK_BpiLibOutputDir>
+    <ILINK_BpiLibOutputDir Condition="'$(ILINK_BpiLibOutputDir)'=='' And '$(AppType)'=='Package'">$(CBuilderBPIOutputPath)</ILINK_BpiLibOutputDir>
+    <ILINK_BpiLibOutputDir Condition="'$(ILINK_BpiLibOutputDir)'==''">$(FinalOutputDir)</ILINK_BpiLibOutputDir>
+    <ILINK_BpiLibOutputDir Condition="'$(ILINK_BpiLibOutputDir)'!='' And !HasTrailingSlash('$(ILINK_BpiLibOutputDir)')">$(ILINK_BpiLibOutputDir)\</ILINK_BpiLibOutputDir>
+
+    <BCC_OutputDir Condition="'$(BCC_OutputDir)'==''">$(IntermediateOutputDir)</BCC_OutputDir>
+    <BCC_OutputDir Condition="'$(BCC_OutputDir)'!='' And !HasTrailingSlash('$(BCC_OutputDir)')">$(BCC_OutputDir)\</BCC_OutputDir>
+    <BRCC_OutputDir Condition="'$(BRCC_OutputDir)'==''">$(IntermediateOutputDir)</BRCC_OutputDir>
+    <BRCC_OutputDir Condition="'$(BRCC_OutputDir)'!='' And !HasTrailingSlash('$(BRCC_OutputDir)')">$(BRCC_OutputDir)\</BRCC_OutputDir>
+    <TASM_OutputDir Condition="'$(TASM_OutputDir)'==''">$(IntermediateOutputDir)</TASM_OutputDir>
+    <TASM_OutputDir Condition="'$(TASM_OutputDir)'!='' And !HasTrailingSlash('$(TASM_OutputDir)')">$(TASM_OutputDir)\</TASM_OutputDir>
+    <DCC_ObjOutput Condition="'$(DCC_ObjOutput)'==''">$(IntermediateOutputDir)</DCC_ObjOutput>
+    <DCC_ObjOutput Condition="'$(DCC_ObjOutput)'!='' And !HasTrailingSlash('$(DCC_ObjOutput)')">$(DCC_ObjOutput)\</DCC_ObjOutput>
+    <DCC_DcuOutput>$(DCC_ObjOutput)</DCC_DcuOutput>
+    <DCC_BpiOutput Condition="'$(DCC_BpiOutput)'==''">$(ILINK_BpiLibOutputDir)</DCC_BpiOutput>
+    <DCC_BplOutput>$(FinalOutputDir)</DCC_BplOutput>
+
+    <GENTLB_OutputDir Condition="'$(GENTLB_OutputDir)'!='' And !HasTrailingSlash('$(GENTLB_OutputDir)')">$(GENTLB_OutputDir)\</GENTLB_OutputDir>
+    <GENTLB_OutputName Condition="'$(GENTLB_OutputName)'==''">$(MSBuildProjectName).tlb</GENTLB_OutputName>
+    <GENTLB_GenCppBindings>false</GENTLB_GenCppBindings>
+
+    <!-- Library search paths -->
+    <ILINK_LibraryPath Condition="('$(CBuilderLibraryPath)'!='') And ('$(USING_CLANG_WIN32)'!='true')">$(ILINK_LibraryPath);$(CBuilderLibraryPath)</ILINK_LibraryPath>
+    <ILINK_LibraryPath Condition="('$(CBuilderLibraryPath)'!='') And ('$(USING_CLANG_WIN32)'=='true')">$(ILINK_LibraryPath);$(CBuilderLibraryPath)</ILINK_LibraryPath>
+    <ILINK_LibraryPath Condition="'$(CBuilderBPIOutputPath)'!=''">$(ILINK_LibraryPath);$(CBuilderBPIOutputPath)</ILINK_LibraryPath>
+
+    <ILINK_TranslatedLibraryPath Condition="'$(ILINK_TranslatedLibraryPath)'=='' And '$(LANGDIR)' != ''">$(BDSLIB)\$(PLATFORM)\release\$(LANGDIR)</ILINK_TranslatedLibraryPath>
+    <ILINK_LibraryPath Condition="'$(ILINK_TranslatedLibraryPath)'!='' And '$(LANGDIR)' != ''">$(ILINK_TranslatedLibraryPath);$(ILINK_LibraryPath)</ILINK_LibraryPath>
+
+    <ILINK_LibraryPath Condition="'$(DelphiDCPOutput)'!='' And '$(DelphiDCPOutput)'!='$(CBuilderBPIOutputPath)' And ('$(Platform)'!='$(ciOSDevice32Platform)' And '$(Platform)'!='$(ciOSDevice64Platform)')">$(ILINK_LibraryPath);$(DelphiDCPOutput)</ILINK_LibraryPath>
+    <!--<ILINK_LibraryPath Condition="'$(Win32DCPOutput)'!='' And '$(Win32DCPOutput)'!='$(CBuilderBPIOutputPath)'">$(ILINK_LibraryPath);$(Win32DCPOutput)</ILINK_LibraryPath>-->
+    <ILINK_LibraryPath Condition="'$(BCC_OutputDir'!=''">$(BCC_OutputDir);$(ILINK_LibraryPath)</ILINK_LibraryPath>
+    <ILINK_LibraryPath Condition="'$(DCC_ObjOutput)'!='$(BCC_OutputDir)'">$(ILINK_LibraryPath);$(DCC_ObjOutput)</ILINK_LibraryPath>
+
+    <ILINK_ObjectSearchPath>$(ILINK_LibraryPath)</ILINK_ObjectSearchPath>
+    <ILINK_IntermediateOutputPath Condition="'$(ILINK_IntermediateOutputPath'==''">$(IntermediateOutputDir)</ILINK_IntermediateOutputPath>
+
+    <!-- Default Values -->
+    <BCC_PCHName Condition="'$(BCC_PCHName)'=='' And '$(BCC_PCHUsage)'!='None'">$(IntermediateOutputDir)$(OutputName).pch</BCC_PCHName>
+    <ILINK_PackageImports>@(PackageImport)</ILINK_PackageImports>
+    <ILINK_PackageLibs Condition="'$(UsePackages)'!='true' And '$(AppType)'!='Package'">$(AllPackageLibs)</ILINK_PackageLibs>
+    <ILINK_MapFileName Condition="'$(ILINK_MapFileName)'=='' And '$(ILINK_MapFileType)'!='None'">$(FinalOutputDir)$(OutputName).map</ILINK_MapFileName>
+
+    <ProjectName>$(MSBuildProjectName)</ProjectName>
+    <ProjectFilename>$(MSBuildProjectFile)</ProjectFilename>
+    <ProjectExt>$(MSBuildProjectExtension)</ProjectExt>
+    <ProjectDir>$(MSBuildProjectDirectory)</ProjectDir>
+    <ProjectPath>$(MSBuildProjectFullPath)</ProjectPath>
+
+    <InputPath>@(InputFile->'%(FullPath)')</InputPath>
+    <InputDir>@(InputFile->'%(RootDir)%(Directory)')</InputDir>
+    <InputName>@(InputFile->'%(Filename)')</InputName>
+    <InputExt>@(InputFile->'%(Extension)')</InputExt>
+    <InputFilename>@(InputFile->'%(Filename)%(Extension)')</InputFilename>
+
+    <OutputPath>@(OutputFile->'%(FullPath)')</OutputPath>
+    <OutputDir>@(OutputFile->'%(RootDir)%(Directory)')</OutputDir>
+    <OutputName>@(OutputFile->'%(Filename)')</OutputName>
+    <OutputExt>@(OutputFile->'%(Extension)')</OutputExt>
+    <OutputFilename>@(OutputFile->'%(Filename)%(Extension)')</OutputFilename>
+
+    <!-- Codeguard (Currently not supported for Clang32 compiler -->
+    <CodeGuard_Lib Condition="'$(BCC_AllCodeguardOptions)'=='true' And '$(Platform)'=='$(cWin32Platform)' And '$(USING_CLANG_WIN32)'!='true'">cg32.$(LibExt)</CodeGuard_Lib>
+
+    <!-- Miscellaneous and Build Event Properties -->
+    <BCC_ReplaceHeaderName Condition="$(BCC_ReplaceHeaderName)!='' And '$(OptPCH)'!=''">$(BCC_ReplaceHeaderName);</BCC_ReplaceHeaderName>
+    <BCC_ReplaceHeaderName>$(BCC_ReplaceHeaderName)$(OptPCH)</BCC_ReplaceHeaderName>
+
+    <BCC_LinkWithDynamicRTL>$(DynamicRTL)</BCC_LinkWithDynamicRTL>
+  </PropertyGroup>
+
+
+  <!-- Win32/OSX based options -->
+  <PropertyGroup Condition="'$(USING_CLANG)'!='true'">
+    <!-- Include Paths -->
+    <IncludePath Condition="'$(CBuilderIncludePath)'!=''">$(IncludePath);$(CBuilderIncludePath)</IncludePath>
+    <IncludePath Condition="'$(DelphiHPPOutputPath)'!=''">$(IncludePath);$(DelphiHPPOutputPath)</IncludePath>
+    <IncludePath Condition="'$(LANGDIR)'!=''">@(TranslatedIncludePath);$(IncludePath)</IncludePath>
+    <BCC_IncludePath Condition="'$(BCC_IncludePath)'!=''">$(BCC_IncludePath);$(IncludePath)</BCC_IncludePath>
+    <BCC_IncludePath Condition="'$(BCC_IncludePath)'==''">$(IncludePath)</BCC_IncludePath>
+  </PropertyGroup>
+
+
+  <!--
+  ========================================================================
+    LD based options for iOS And Android platforms
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cAndroidPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+    <!-- Android NDK GNUSTL 4.8 library paths -->
+    <GNUSTL_VER>4.8</GNUSTL_VER>
+    <ILINK_LibraryPath Condition="'$(Platform)'=='$(cAndroidPlatform)' And '$(ILINK_LibraryPath)'!=''">$(ILINK_LibraryPath);$(CBuilderNDKLibraryPath);$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\libs\armeabi-v7a</ILINK_LibraryPath>
+    <ILINK_LibraryPath Condition="'$(Platform)'=='$(cAndroidPlatform)' And '$(ILINK_LibraryPath)'==''">$(CBuilderNDKLibraryPath);$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\libs\armeabi-v7a</ILINK_LibraryPath>
+    <!-- iOS SDK paths -->
+    <ILINK_LibraryPath Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(ILINK_LibraryPath)'!=''">$(ILINK_LibraryPath);$(Profile_SysRoot)\usr\lib;$(Profile_SysRoot)\System\Library\Frameworks</ILINK_LibraryPath>
+    <ILINK_LibraryPath Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(ILINK_LibraryPath)'==''">$(Profile_SysRoot)\usr\lib;$(Profile_SysRoot)\System\Library\Frameworks</ILINK_LibraryPath>
+    <!-- Be careful with this options and the order of them. Android linker needs a mix of options to load libraries in on estricted order
+        -lrtlhelper
+        -ProjectX.lnk that contains the start-up code, SysInit.o and the user object files
+        -lUseLibrariesToLink (e.g. -lrtl, -lfmx and the rest of PackageLibs)
+        -lUseLibrariesToLink  (ILINK_AdditionalLibs generic libraries (ie. -lcompiler_rt -lgnusl_static)
+    -->
+    <LD_UseLibrariesToLink Condition="'$(ILINK_PackageLibs)'!=''">@(ILINK_PackageLibs->'%(filename)')</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(ILINK_PackageLibs)'==''">rtl</LD_UseLibrariesToLink>
+    <!-- If libsqlib or libmidas are linked, Force add rtlhelper first to aoivd unexpected link of new/new[] operator. -->
+    <LD_UseLibrariesToLink Condition="'$(ILink_LinkwithSQL)'!='false' Or '$(ILink_LinkwithMidas)'!='false'">$(LD_UseLibrariesToLink);rtlhelper</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(ILink_LinkwithSQL)'!='false'">$(LD_UseLibrariesToLink);sqlib</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(ILink_LinkwithIntebaseTogo)'!='false'">$(LD_UseLibrariesToLink);ibtogo</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(ILink_LinkwithMidas)'!='false'">$(LD_UseLibrariesToLink);midas</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(ILink_LinkwithZLib)'!='false'">$(LD_UseLibrariesToLink);z</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(Platform)'=='$(cAndroidPlatform)' And '$(ILink_LinkwithSQLite)'!='false'">$(LD_UseLibrariesToLink);sqlite</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(ILink_LinkwithSQLite)'!='false'">$(LD_UseLibrariesToLink);sqlite</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(ILink_LinkwithSSLandCrypto)'=='true'">$(LD_UseLibrariesToLink);ssl;crypto</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="'$(ILINK_LinkwithIndy)'!='false'">$(LD_UseLibrariesToLink);IndyCore;IndyProtocols;IndySystem</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(ILINK_LinkwithRegEx)'!='false'">$(LD_UseLibrariesToLink);pcre</LD_UseLibrariesToLink>
+    <LD_UseLibrariesToLink Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)' Or '$(Platform)'=='$(cAndroidPlatform)') And '$(ILINK_LinkwithDUnitXRuntime)'=='true'">$(LD_UseLibrariesToLink);DUnitXRuntime</LD_UseLibrariesToLink>
+
+    <LD_UseLibrariesToLink Condition="'$(ILink_AdditionalLinkerFiles)'!=''">$(LD_UseLibrariesToLink);$(ILink_AdditionalLinkerFiles)</LD_UseLibrariesToLink>
+    <!-- ILINK_AdditionalLibs should be pased last (generic libraries) -->
+    <LD_UseLibrariesToLink Condition="'$(ILINK_AdditionalLibs)'!=''">$(LD_UseLibrariesToLink);$(ILINK_AdditionalLibs)</LD_UseLibrariesToLink>
+
+    <!-- By the moment only used for localized libraries -->
+    <!-- JuanR: If we are going to use tranlation libraries with "lib" prefix, we could add them to the LD_UseLibrariesToLink option (-l) and this one will not be necessary anymore and could be removed -->
+    <SystemLibraryPath Condition="'$(ILINK_FullDebugInfo)'=='true'">$(BDSLIB)\$(Platform)\debug</SystemLibraryPath>
+    <SystemLibraryPath Condition="'$(ILINK_FullDebugInfo)'!='true'">$(BDSLIB)\$(Platform)\release</SystemLibraryPath>
+    <LD_ForceLoadStaticLibraries Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(LANGDIR)'!=''">$(SystemLibraryPath)\$(LANGDIR)\liblocalizedlib.a;$(LD_ForceLoadStaticLibraries)</LD_ForceLoadStaticLibraries>
+
+    <!-- Startup and end codes for Android -->
+    <LD_SetStartupCodeToUse Condition="'$(Platform)'=='$(cAndroidPlatform)'">$(ILINK_StartupObjs);$(SystemLibraryPath)\start_android.o;$(SystemLibraryPath)\startup_android.o;$(SystemLibraryPath)\SysInit.o</LD_SetStartupCodeToUse>
+    <LD_SetEndCodeToUse Condition="'$(Platform)'=='$(cAndroidPlatform)'">$(SystemLibraryPath)\end_android.o;$(EndCodeObj)</LD_SetEndCodeToUse>
+    <!-- Startup and end codes for iOS -->
+    <LD_SetStartupCodeToUse Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)')">$(SystemLibraryPath)\$(StartupObj);$(SystemLibraryPath)\SysInit.o</LD_SetStartupCodeToUse>
+    <LD_SetEndCodeToUse Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)')">$(SystemLibraryPath)\$(EndCodeObj)</LD_SetEndCodeToUse>
+  </PropertyGroup>
+
+
+
+  <!--
+  ========================================================================
+    Property group for Android platform
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+
+    <DCC_LibraryPath>$(DelphiNDKLibraryPath)</DCC_LibraryPath>
+    <DCC_LinkerOptions Condition="'$(LibraryPath)'!=''">$(DCC_LinkerOptions) -L "$(LibraryPath)"</DCC_LinkerOptions>
+    <!-- Android NDK External linker -->
+    <DCC_LinkerExecutable>$(NDKArmLinuxAndroidFile)</DCC_LinkerExecutable>
+
+    <LD_AndroidOutputFileName>@(OutputFile)</LD_AndroidOutputFileName>
+    <LD_SysRoot>$(NDKApiPath)\arch-arm</LD_SysRoot>
+    <LD_SharedLibrary>true</LD_SharedLibrary>
+    <LD_VersionScriptFile>$(BDS)\bin\AndroidSymbols.vsr</LD_VersionScriptFile>
+    <LD_UndefinedSymbols>true</LD_UndefinedSymbols>
+    <LD_ReportUnresolvedSymRef>noexecstack;relro;now;muldefs</LD_ReportUnresolvedSymRef>
+    <LD_ForceLoad_RtlHelper>true</LD_ForceLoad_RtlHelper>
+    <LD_StartLibraryGroup>true</LD_StartLibraryGroup>
+    <LD_EndLibraryGroup>true</LD_EndLibraryGroup>
+    <LD_ForceLoad_Rtl>true</LD_ForceLoad_Rtl>
+    <LD_AndroidOutputMapFile Condition="'$(ILINK_GenerateMapFile)'=='true'">@(ILinkMapFile)</LD_AndroidOutputMapFile>
+
+    <CLANG_SysRoot>$(NDKApiPath)\arch-arm</CLANG_SysRoot>
+
+    <!-- Android NDK GNUSTL 4.8 library paths -->
+    <BCC_IDirAfter Condition="'$(BCC_IDirAfter)'!=''">$(BCC_IDirAfter);=\usr\include;$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\include;$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\include\tr1;$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\libs\armeabi-v7a\include;$(NDKBasePath)\sources\android\native_app_glue</BCC_IDirAfter>
+    <BCC_IDirAfter Condition="'$(BCC_IDirAfter)'==''">=\usr\include;$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\include;$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\include\tr1;$(NDKBasePath)\sources\cxx-stl\gnu-libstdc++\$(GNUSTL_VER)\libs\armeabi-v7a\include;$(NDKBasePath)\sources\android\native_app_glue</BCC_IDirAfter>
+
+    <CLANG_UseSoftFloatingPoint>true</CLANG_UseSoftFloatingPoint>
+    <CLANG_UseFloatABI>soft</CLANG_UseFloatABI>
+    <CLANG_OnlyFramePointer>true</CLANG_OnlyFramePointer>
+    <CLANG_GenObjFileUsingLLVM>true</CLANG_GenObjFileUsingLLVM>
+    <CLANG_EmitConstructorAliases>true</CLANG_EmitConstructorAliases>
+    <CLANG_TargetTriple>thumbv7-none-linux-androideabi</CLANG_TargetTriple>
+    <CLANG_TargetABI Condition="'$(CLANG_TargetABI)'==''">aapcs-linux</CLANG_TargetABI>
+    <CLANG_TargetCPU Condition="'$(BCC_TargetCPU)'==''">-target-cpu cortex-a8</CLANG_TargetCPU>
+    <CLANG_TargetCPU Condition="'$(BCC_TargetCPU)'!=''">$(BCC_TargetCPU)</CLANG_TargetCPU>
+  </PropertyGroup>
+
+
+  <!--
+  ========================================================================
+    Property group for iOS platforms
+  ========================================================================
+  -->
+  <PropertyGroup Condition="'$(Platform)'=='$(ciOSSimulatorPlatform)' Or '$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+
+    <!-- Should we use ILINK_iOSMinimumVersion value instead ? -->
+    <DCC_iOSMinimumVersion Condition="'$(Platform)'!='ciOSSimulatorPlatform' And '$(DCC_iOSMinimumVersion)'==''">7.0</DCC_iOSMinimumVersion>
+    <DCC_SysLibRoot Condition="'$(Platform)'!='ciOSSimulatorPlatform' And '$(DCC_SysLibRoot)'!=''">$(DCC_SysLibRoot);$(Profile_sysroot)</DCC_SysLibRoot>
+    <DCC_SysLibRoot Condition="'$(Platform)'!='ciOSSimulatorPlatform' And '$(DCC_SysLibRoot)'==''">$(Profile_sysroot)</DCC_SysLibRoot>
+    <DCC_FrameworkPath  Condition="'$(Platform)'!='ciOSSimulatorPlatform' And '$(DCC_FrameworkPath)'!=''">$(DCC_FrameworkPath);$(Profile_Frameworkroot)</DCC_FrameworkPath>
+    <DCC_FrameworkPath Condition="'$(Platform)'!='ciOSSimulatorPlatform' And '$(DCC_FrameworkPath)'==''">$(Profile_Frameworkroot)</DCC_FrameworkPath>
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'!='' And '$(Platform)'=='$(ciOSDevice32Platform)'">$(DCC_LinkerOptions) -arch armv7</DCC_LinkerOptions>
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'=='' And '$(Platform)'=='$(ciOSDevice32Platform)'">-arch armv7</DCC_LinkerOptions>
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'!='' And '$(Platform)'=='$(ciOSDevice64Platform)'">$(DCC_LinkerOptions) -arch arm64</DCC_LinkerOptions>
+    <DCC_LinkerOptions Condition="'$(DCC_LinkerOptions)'=='' And '$(Platform)'=='$(ciOSDevice64Platform)'">-arch arm64</DCC_LinkerOptions>
+
+    <ILINK_iOSMinimumVersion Condition="('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') And '$(ILINK_iOSMinimumVersion)'==''">7.0</ILINK_iOSMinimumVersion>
+    <RC_MinimumIOSVersion>$(ILINK_iOSMinimumVersion)</RC_MinimumIOSVersion>
+
+    <ILINK_DefaultExportSymbols>_@DbgExcNotify;__CPPDbgExcNotify;_TMethodImplementationIntercept;_dbkFCallWrapperAddr;___dbk_fcall_wrapper</ILINK_DefaultExportSymbols>
+    <ILINK_SymbolsToExport Condition="'$(ILINK_SymbolsToExport)'!=''">$(ILINK_SymbolsToExport);$(ILINK_DefaultExportSymbols)</ILINK_SymbolsToExport>
+    <ILINK_SymbolsToExport Condition="'$(ILINK_SymbolsToExport)'==''">$(ILINK_DefaultExportSymbols)</ILINK_SymbolsToExport>
+    <ILINK_SymbolsToExport>$(ILINK_SymbolsToExport);___rsrc_*;___rstr_*</ILINK_SymbolsToExport>
+
+    <LD_DebugInfoOptimization Condition="'$(ILINK_FullDebugInfo)'=='true'">false</LD_DebugInfoOptimization>
+    <LD_DebugInfoOptimization Condition="'$(ILINK_FullDebugInfo)'!='true'">true</LD_DebugInfoOptimization>
+    <LD_SystemLibraries>$(Profile_SysRoot)\usr\lib\libiconv.dylib;$(Profile_SysRoot)\usr\lib\libobjc.dylib</LD_SystemLibraries>
+    <LD_LinkDynamically>true</LD_LinkDynamically>
+    <LD_RemoveUnreachableSymbols>true</LD_RemoveUnreachableSymbols>
+    <LD_TargetArhitecture Condition="'$(Platform)'=='$(ciOSDevice32Platform)'">-arch armv7</LD_TargetArhitecture>
+    <LD_TargetArhitecture Condition="'$(Platform)'=='$(ciOSDevice64Platform)'">-arch arm64</LD_TargetArhitecture>
+    <LD_TargetArhitecture Condition="'$(Platform)'=='$(ciOSSimulatorPlatform)'">-arch i386</LD_TargetArhitecture>
+    <LD_iOSOutputMapFile Condition="'$(ILINK_GenerateMapFile)'=='true'">@(ILinkMapFile)</LD_iOSOutputMapFile>
+
+    <BCC_IDirAfter Condition="'$(BCC_IDirAfter)'!=''">$(BCC_IDirAfter);=\usr\include;=\usr\include\c++\v1;=\usr\lib\clang\include</BCC_IDirAfter>
+    <BCC_IDirAfter Condition="'$(BCC_IDirAfter)'==''">=\usr\include;=\usr\include\c++\v1;=\usr\lib\clang\include</BCC_IDirAfter>
+    <BCC_FrameworkRoot Condition="$(BCC_FrameworkRoot)!=''">$(BCC_FrameworkRoot);$(Profile_SysRoot)\System\Library\Frameworks</BCC_FrameworkRoot>
+    <BCC_FrameworkRoot Condition="$(BCC_FrameworkRoot)==''">$(Profile_SysRoot)\System\Library\Frameworks</BCC_FrameworkRoot>
+
+    <CLANG_SysRoot>$(Profile_SysRoot)</CLANG_SysRoot>
+    <CLANG_DisableFramePtrElimOpt>true</CLANG_DisableFramePtrElimOpt>
+    <CLANG_UseSjLjExcpetions>true</CLANG_UseSjLjExcpetions>
+    <CLANG_UseMappableDiagnostics>true</CLANG_UseMappableDiagnostics>
+    <CLANG_TargetTriple Condition="'$(Platform)'=='$(ciOSDevice32Platform)'">thumbv7-apple-ios</CLANG_TargetTriple>
+    <CLANG_TargetTriple Condition="'$(Platform)'=='$(ciOSDevice64Platform)'">arm64-apple-ios7</CLANG_TargetTriple>
+    <CLANG_TargetTriple Condition="'$(Platform)'=='$(ciOSSimulatorPlatform)'">i386-apple-ios</CLANG_TargetTriple>
+    <CLANG_TargetABI Condition="('$(Platform)'=='$(ciOSDevice32Platform)' And '$(CLANG_TargetABI)'=='')">apcs-gnu</CLANG_TargetABI>
+    <CLANG_TargetABI Condition="('$(Platform)'=='$(ciOSDevice64Platform)' And '$(CLANG_TargetABI)'=='')">darwinpcs</CLANG_TargetABI>
+  </PropertyGroup>
+
+
+  <!-- Clang based options -->
+  <PropertyGroup Condition="'$(USING_CLANG)'=='true'">
+
+    <!-- Workaround BCC looking in current directory -->
+    <BCC_AddProjectDirToIncludePath>true</BCC_AddProjectDirToIncludePath>
+    <!-- Include Paths -->
+    <UserIncludePath Condition="'$(CBuilderUserIncludePath)'!=''">$(CBuilderUserIncludePath)</UserIncludePath>
+    <SysIncludePath Condition="'$(CBuilderIncludePath)'!=''">$(SysIncludePath);$(CBuilderIncludePath)</SysIncludePath>
+    <SysIncludePath Condition="'$(DelphiHPPOutputPath)'!=''">$(SysIncludePath);$(DelphiHPPOutputPath)</SysIncludePath>
+    <SysIncludePath Condition="'$(LANGDIR)'!=''">@(TranslatedIncludePath);$(SysIncludePath)</SysIncludePath>
+    <BCC_SystemIncludePath Condition="'$(SysIncludePath)'!=''">$(BCC_SystemIncludePath);$(SysIncludePath)</BCC_SystemIncludePath>
+    <BCC_SystemIncludePath Condition="'$(SysIncludePath)'==''">$(SystemIncludePath)</BCC_SystemIncludePath>
+
+    <BCC_IncludePath Condition="'$(BCC_AddProjectDirToIncludePath)'=='true' And '$(BCC_IncludePath)'!=''">$(BCC_IncludePath);$(MSBuildProjectDirectory)</BCC_IncludePath>
+    <BCC_IncludePath Condition="'$(BCC_AddProjectDirToIncludePath)'=='true' And '$(BCC_IncludePath)'==''">$(MSBuildProjectDirectory)</BCC_IncludePath>
+    <BCC_IncludePath Condition="'$(IncludePath)'!='' And '$(BCC_IncludePath)'==''">$(IncludePath)</BCC_IncludePath>
+    <BCC_IncludePath Condition="'$(IncludePath)'!='' And '$(BCC_IncludePath)'!=''">$(BCC_IncludePath);$(IncludePath)</BCC_IncludePath>
+    <BCC_IncludePath Condition="'$(UserIncludePath)'!='' And '$(BCC_IncludePath)'==''">$(UserIncludePath)</BCC_IncludePath>
+    <BCC_IncludePath Condition="'$(UserIncludePath)'!='' And '$(BCC_IncludePath)'!=''">$(BCC_IncludePath);$(UserIncludePath)</BCC_IncludePath>
+
+    <!--Defines-->
+    <CLANG_Defines Condition="'$(CLANG_Defines)'!=''">$(CLANG_Defines);$(Defines)</CLANG_Defines>
+    <CLANG_Defines Condition="'$(CLANG_Defines)'==''">$(Defines)</CLANG_Defines>
+    <CLANG_Defines Condition="'$(WindowsVersionDefines)'!=''">$(CLANG_Defines);$(WindowsVersionDefines)</CLANG_Defines>
+
+    <!--Default values-->
+    <CLANG_OutputDir>$(BCC_OutputDir)</CLANG_OutputDir>
+    <CLANG_BorlandExtensions>true</CLANG_BorlandExtensions>
+    <CLANG_NoBuiltInc>true</CLANG_NoBuiltInc>
+    <CLANG_NoStdSystemInc>true</CLANG_NoStdSystemInc>
+    <CLANG_UnwindTables>true</CLANG_UnwindTables>
+    <CLANG_InputLanguageType>c++</CLANG_InputLanguageType>
+    <CLANG_LanguageStandard>c++11</CLANG_LanguageStandard>
+    <CLANG_EnableCPPExceptions>true</CLANG_EnableCPPExceptions>
+    <CLANG_StackRealign>true</CLANG_StackRealign>
+    <CLANG_EnableBlocksLangFeature>true</CLANG_EnableBlocksLangFeature>
+
+    <CLANG_TargetTriple Condition="'$(Platform)'=='$(cWin64Platform)'">x86_64-pc-win32-elf</CLANG_TargetTriple>
+    <CLANG_TargetTriple Condition="'$(Platform)'=='$(cWin32Platform)'">i686-pc-win32-omf</CLANG_TargetTriple>
+
+    <CLANG_RunPreprocessor>false</CLANG_RunPreprocessor>
+    <CLANG_DependencyIncDepHeaders>true</CLANG_DependencyIncDepHeaders>
+    <CLANG_EmitNativeObject>true</CLANG_EmitNativeObject>
+    <CLANG_EmitLLVM>false</CLANG_EmitLLVM>
+    <CLANG_EnableExceptions>true</CLANG_EnableExceptions>
+    <CLANG_SEH>true</CLANG_SEH>
+
+    <CLANG_RelaxAllMachineInstructions>$(BCC_DisableOptimizations)</CLANG_RelaxAllMachineInstructions>
+    <CLANG_UsePosIndCodeForObjectFile Condition="'$(Platform)'!='$(cWin64Platform)'">true</CLANG_UsePosIndCodeForObjectFile>
+    <CLANG_GenVerboseAssemblyOutput Condition="'$(Platform)'!='$(cWin64Platform)'">true</CLANG_GenVerboseAssemblyOutput>
+    <CLANG_NotUseCppHeaders Condition="'$(Platform)'!='$(cWin64Platform)'">true</CLANG_NotUseCppHeaders>
+    <CLANG_DefineDeprecatedMacros Condition="'$(Platform)'!='$(cWin64Platform)'">true</CLANG_DefineDeprecatedMacros>
+    <CLANG_EnableStackProtectors Condition="'$(Platform)'!='$(cWin64Platform)'">true</CLANG_EnableStackProtectors>
+    <BCC_PCHUsage Condition=" '$(BCC_PCHUsage)'=='' ">GenerateAndUse</BCC_PCHUsage>
+    <BCC_PCHName Condition="'$(BCC_PCHName)'=='' And '$(BCC_PCHUsage)'!='None'">$(IntermediateOutputDir)$(OutputName).pch</BCC_PCHName>
+
+    <!-- Spell Checking causes long delays when errors are encountered -->
+    <!-- Investigate if we want to hardcode or give user control -->
+    <BCC_DisableSpellChecking>true</BCC_DisableSpellChecking>
+
+    <!-- Temporary workarounds -->
+    <CLANG_No__cxa_atexit_ForDestructors>true</CLANG_No__cxa_atexit_ForDestructors>
+
+    <!-- Out of process and parallel compilation options -->
+    <RunBCCOutOfProcess>$(RunBCCOutOfProcess)</RunBCCOutOfProcess>
+    <CLANG_ParallelDependencies>$(RunBCCOutOfProcess)</CLANG_ParallelDependencies>
+    <CLANG_EnableBatchCompilation>$(BCC_EnableBatchCompilation)</CLANG_EnableBatchCompilation>
+    <CLANG_SubProcessesNumber Condition="'$(RunBCCOutOfProcess)'=='true' And '$(SubProcessesNumber)'!=''">$(SubProcessesNumber)</CLANG_SubProcessesNumber>
+    <CLANG_SubProcessesNumber Condition="'$(RunBCCOutOfProcess)'=='true' And '$(SubProcessesNumber)'==''">1</CLANG_SubProcessesNumber>
+    <CLANG_BorlandDiagnosticFormat Condition="'$(RunBCCOutOfProcess)'=='true'">borland</CLANG_BorlandDiagnosticFormat>
+
+    <!-- Workaround fact that Incr. linking AVs in ilink64 currently -->
+    <ILINK_DisableIncrementalLinking>true</ILINK_DisableIncrementalLinking>
+
+
+    <!--TODO: To delete. We are using BCC_GenearateUnicode instead-->
+    <CLANG_GenerateUnicode Condition="'$(_TCHARMapping)'!='char'">true</CLANG_GenerateUnicode>
+
+  </PropertyGroup>
+
+  <!-- CLANG_WIN32 -->
+  <PropertyGroup Condition="'$(USING_CLANG_WIN32)'=='true'">
+	<CLANG_FunctionSections>true</CLANG_FunctionSections>
+	<CLANG_NoThreadsafeStatics>true</CLANG_NoThreadsafeStatics>
+	<CLANG_DisableFramePtrElimOpt>true</CLANG_DisableFramePtrElimOpt>
+	<CLANG_SEH>true</CLANG_SEH>
+	<CLANG_EmitNativeObject>true</CLANG_EmitNativeObject>
+	<CLANG_UseBorlandABI>true</CLANG_UseBorlandABI>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <ILINK_PackageImports Condition="'$(UsePackages)'=='true' AND '$(UsingDelphiRTL)'=='true' AND '$(AppType)'!='Package' And '$(ILINK_PackageImports)'!=''">$(LinkPackageImports);$(ILINK_PackageImports)</ILINK_PackageImports>
+    <ILINK_PackageImports Condition="'$(UsePackages)'=='true' AND '$(UsingDelphiRTL)'=='true' AND '$(AppType)'!='Package' And '$(ILINK_PackageImports)'==''">$(LinkPackageImports)</ILINK_PackageImports>
+    <ILINK_PackageLibs Condition="'$(UsePackages)'=='true' AND '$(UsingDelphiRTL)'=='true' AND '$(AppType)'!='Package'">$(LinkPackageStatics)</ILINK_PackageLibs>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <_DirectoryList Include="$(BCC_OutputDir)"/>
+    <_DirectoryList Include="$(BRCC_OutputDir)"/>
+    <_DirectoryList Include="$(DCC_ObjOutput)"/>
+    <_DirectoryList Include="$(Tasm_OutputDir)"/>
+    <_DirectoryList Include="$(IntermediateOutputDir)"/>
+    <_DirectoryList Include="$(FinalOutputDir)"/>
+    <_DirectoryList Include="$(ILINK_IntermediateOutputPath)"/>
+    <_DirectoryList Include="$(ILINK_BpiLibOutputDir)"/>
+    <_DirectoryList Include="$(DelphiHPPOutputPath)"
+      Condition="'$(DelphiHPPOutputPath)'!='' And !Exists('$(DelphiHPPOutputPath)')"/>
+    <_DirectoryList Include="@(TranslatedIncludePath)"/>
+  </ItemGroup>
+
+  <!--
+    ***** Targets ***********************************************
+    ** Targets prefixed with an underscore are not meant to be **
+    ** invoked directly with MSBuild's /t switch.              **
+    *************************************************************
+  -->
+  <Target Name="_MakePreReq">
+    <Error Condition="'$(FileToCompile)'!=''"
+      Text="Cannot specify property 'FileToCompile' for Make or Build targets. Use 'MakeOne' instead."/>
+  </Target>
+
+  <Target Name="_MakeOnePreReq">
+    <Error Condition="'$(FileToCompile)'==''"
+      Text="Must specify property 'FileToCompile' for 'MakeOne' target; i.e., /p:FileToCompile=&lt;filename&gt;."/>
+  </Target>
+
+  <Target Name="PreLinkEvent"
+    Condition=" '$(PreLinkEvent)'!='' And '$(KibitzCompile)'==''"
+    DependsOnTargets="$(PreLinkEventDependsOn)">
+    <Exec Command="$(PreLinkEvent)" IgnoreExitCode="$(PreLinkEventIgnoreExitCode)" WorkingDirectory="$(FinalOutputDir)"/>
+  </Target>
+
+  <Target Name="_PasDepCheck">
+    <DependencyCheck
+      InputFiles="@(DelphiCompile)"
+      OutputFile="$(DCC_ObjOutput)%(DelphiCompile.Filename).$(ObjExt)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="PasOutOfDate"
+      />
+      <Output
+        TaskParameter="Skipped"
+        ItemName="SkippedPasFiles"
+      />
+    </DependencyCheck>
+    <ItemSort
+      MetaName="BuildOrder"
+      ValueIsInt="true"
+      Items="@(PasOutOfDate)"
+    >
+      <Output
+        TaskParameter="Items"
+        ItemName="PasFiles"
+      />
+    </ItemSort>
+
+    <MessageMap
+      Condition="'@(SkippedPasFiles)'!=''"
+      FormatString="strSkipping"
+      Arg0="@(SkippedPasFiles)"
+    />
+    <MessageMap
+      Condition="'@(PasFiles)'!='' And '$(ForceRebuild)'!='true'"
+      FormatString="strModified"
+      Arg0="@(PasFiles)"
+    />
+  </Target>
+
+  <Target Name="_CppDepCheck">
+    <BccDependencyCheck
+      InputFiles="@(CppCompile)"
+      OutputFile="$(BCC_OutputDir)%(CppCompile.Filename)%(CppCompile.Suffix).$(ObjExt)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="CppOutOfDate"
+      />
+      <Output
+        TaskParameter="Skipped"
+        ItemName="SkippedCppFiles"
+      />
+    </BccDependencyCheck>
+    <ItemSort
+      MetaName="BuildOrder"
+      ValueIsInt="true"
+      Items="@(CppOutOfDate)"
+    >
+      <Output
+        TaskParameter="Items"
+        ItemName="_CppFiles"
+      />
+    </ItemSort>
+    <MessageMap
+      Condition="'@(SkippedCppFiles)'!=''"
+      FormatString="strSkipping"
+      Arg0="@(SkippedCppFiles)"
+    />
+    <MessageMap
+      Condition="'@(_CppFiles)'!='' And '$(ForceRebuild)'!='true'"
+      FormatString="strModified"
+      Arg0="@(_CppFiles)"
+    />
+  </Target>
+
+  <!-- This target must be called for any compilation to work -->
+  <Target Name="_PCHDepCheck">
+    <BccDependencyCheck
+      Condition="(('$(Platform)'=='$(cWin32Platform)' And '$(USING_CLANG_WIN32)'=='true')
+        Or '$(Platform)'=='$(cWin64Platform)'
+        Or '$(Platform)'=='$(ciOSDevice32Platform)'
+        Or '$(Platform)'=='$(ciOSDevice64Platform)'
+        Or '$(Platform)'=='$(cAndroidPlatform)') And '$(BCC_PCHUsage)'=='GenerateAndUse'"
+      InputFiles="@(PCHCompile)"
+      OutputFile="$(BCC_OutputDir)%(PCHCompile.Filename).pch"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="PCHOutOfDate"
+      />
+      <Output
+        TaskParameter="Skipped"
+        ItemName="SkippedPCHFiles"
+      />
+    </BccDependencyCheck>
+
+    <MessageMap
+      Condition="'@(SkippedPCHFiles)'!=''"
+      FormatString="strSkipping"
+      Arg0="@(SkippedPCHFiles)"
+    />
+
+    <ItemGroup>
+        <CppFiles Include="@(PCHOutOfDate);@(_CppFiles)" Condition="'@(PCHOutOfDate)'!=''"/>
+        <CppFiles Include="@(_CppFiles)" Condition="'@(PCHOutOfDate)'==''"/>
+    </ItemGroup>
+
+  </Target>
+
+  <Target Name="_AsmDepCheck">
+    <DependencyCheck
+      InputFiles="@(AsmCompile)"
+      OutputFile="$(TASM_OutputDir)%(AsmCompile.Filename)%(AsmCompile.Suffix).$(ObjExt)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="AsmOutOfDate"
+      />
+      <Output
+        TaskParameter="Skipped"
+        ItemName="SkippedAsmFiles"
+      />
+    </DependencyCheck>
+    <ItemSort
+      MetaName="BuildOrder"
+      ValueIsInt="true"
+      Items="@(AsmOutOfDate)"
+    >
+      <Output
+        TaskParameter="Items"
+        ItemName="AsmFiles"
+      />
+    </ItemSort>
+    <MessageMap
+      Condition="'@(SkippedAsmFiles)'!=''"
+      FormatString="strSkipping"
+      Arg0="@(SkippedAsmFiles)"
+    />
+    <MessageMap
+      Condition="'@(AsmFiles)'!='' And '$(ForceRebuild)'!='true'"
+      FormatString="strModified"
+      Arg0="@(AsmFiles)"
+    />
+  </Target>
+
+  <Target Name="_RcDepCheck">
+    <DependencyCheck
+      InputFiles="@(ResourceCompile)"
+      OutputFile="$(BRCC_OutputDir)%(ResourceCompile.Filename).res"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="RcOutOfDate"
+      />
+      <Output
+        TaskParameter="Skipped"
+        ItemName="SkippedRcFiles"
+      />
+    </DependencyCheck>
+    <ItemSort
+      MetaName="BuildOrder"
+      ValueIsInt="true"
+      Items="@(RcOutOfDate)"
+    >
+      <Output
+        TaskParameter="Items"
+        ItemName="RcFiles"
+      />
+    </ItemSort>
+    <MessageMap
+      Condition="'@(SkippedRcFiles)'!=''"
+      FormatString="strSkipping"
+      Arg0="@(SkippedRcFiles)"
+    />
+    <MessageMap
+      Condition="'@(RcFiles)'!='' And '$(ForceRebuild)'!='true'"
+      FormatString="strModified"
+      Arg0="@(RcFiles)"
+    />
+  </Target>
+
+  <Target Name="_IDEDepCheck" DependsOnTargets="_ResolveFileToCompile">
+    <CallTarget Targets="_CheckLinkDependencies" Condition="'$(_KibitzTask)'=='IDEDepCheck' And '%(InputFile.Identity)'=='$(MSBuildProjectFullPath)'"/>
+    <DependencyCheck
+      Condition="'$(_KibitzTask)'=='IDEDepCheck' And '%(InputFile.Identity)'!='$(MSBuildProjectFullPath)'"
+      InputFiles="@(InputFile)"
+      OutputFile="@(OutputFile)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      KibitzTask="$(_KibitzTask)"
+    />
+  </Target>
+
+  <Target Name="_ResolveUserObjNames">
+    <CreateItem
+      Condition="'%(ObjFiles.IgnorePath)'!='true'"
+      Include="%(ObjFiles.Identity)">
+      <Output
+        TaskParameter="Include"
+        ItemName="UserObjs"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'%(ObjFiles.IgnorePath)'=='true'"
+      Include="@(ObjFiles->'%(Filename)%(Extension)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="UserObjs"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_ResolveUserLibNames">
+    <CreateItem
+      Condition="'%(LibFiles.IgnorePath)'!='true'"
+      Include="%(LibFiles.Identity)">
+      <Output
+        TaskParameter="Include"
+        ItemName="UserLibs"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'%(LibFiles.IgnorePath)'=='true'"
+      Include="@(LibFiles->'%(Filename)%(Extension)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="UserLibs"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_CopyPackageLibs">
+    <CreateItem
+      Include="$(ILINK_PackageImports)">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILINK_PackageImports"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="$(ILINK_PackageLibs)">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILINK_PackageLibs"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_CheckLinkDependencies"
+      DependsOnTargets="_ResolveUserObjNames;_ResolveUserLibNames;_ResolveOutput;_CopyPackageLibs">
+    <DependencyCheck
+      Condition="'$(TLibLink)'!='true' And '$(ForceLink)'!='true'"
+      InputFiles="$(ILINK_StartupObjs);$(ILINK_AdditionalObjs);@(ILINK_PackageImports->'%(filename).$(BpiExt)');@(CompiledObjs);@(UserObjs);@(ILINK_PackageLibs->'%(filename).$(LibExt)');@(UserLibs);$(ILINK_AdditionalLibs);@(DefFile);@(CompiledResources);@(ResFiles);@(FormResources);@(__ProjectResourceOutputFile)"
+      SearchPaths="$(ILINK_LibraryPath)"
+      OutputFile="@(OutputFile)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceLink)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="OutputOutOfDate"
+      />
+    </DependencyCheck>
+    <DependencyCheck
+      Condition="'$(TLibLink)'=='true' And '$(ForceLink)'!='true'"
+      InputFiles="@(CompiledObjs);@(UserObjs)"
+      OutputFile="@(OutputFile->'$(DllPrefix)%(Filename).$(LibExt)')"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceLink)"
+      KibitzTask="$(_KibitzTask)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="OutputOutOfDate"
+      />
+    </DependencyCheck>
+  </Target>
+
+  <Target Name="DependencyCheck" DependsOnTargets="$(DependencyCheckDependsOnTargets)"/>
+
+  <Target Name="__SetProjectResourceFileName">
+    <CreateItem
+      Condition="'@(RcItem)'!=''"
+      Include="$(MSBuildProjectName)_resources.rc">
+      <Output
+        TaskParameter="Include"
+        ItemName="__ProjectResourceFile"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'@(RcItem)'!=''"
+      Include="$(BRCC_OutputDir)$(MSBuildProjectName)_resources.res">
+      <Output
+        TaskParameter="Include"
+        ItemName="__ProjectResourceOutputFile"
+      />
+    </CreateItem>
+  </Target>
+
+
+  <Target Name="_ResolveCompiledOutput" DependsOnTargets="_ExcludeFilesFromBuild">
+    <!-- Add ProjectName.res file here if needed -->
+    <!-- Results of compilation (Bcc, Brcc, Dcc, Tasm) -->
+    <CreateItem
+      Include="@(CppCompile->'$(BCC_OutputDir)%(filename)%(Suffix).$(ObjExt)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledObjs"
+      />
+    </CreateItem>
+
+    <CreateItem
+      Include="@(ResourceCompile->'$(BRCC_OutputDir)%(filename)%(Suffix).res')">
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledResources"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(DelphiCompile->'$(DCC_ObjOutput)%(filename)%(Suffix).$(ObjExt)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledObjs"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(AsmCompile->'$(TASM_OutputDir)%(filename)%(Suffix).$(ObjExt)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledObjs"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="$(GENTLB_OutputDir)$(GENTLB_OutputName)"
+      Condition="'@(RidlCompile)'!=''"
+    >
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledResources"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="$(BRCC_OutputDir)$(MSBuildProjectName)_resources.res"
+      Condition="'@(RcItem)'!=''"
+    >
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledResources"
+      />
+    </CreateItem>
+
+    <CreateItem
+      Include="$(MSBuildProjectName).res"
+      Condition="'@(__ShouldLinkVersion)'=='true' Or '$(__ShouldBuildVersion)'=='true'"
+    >
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledResources"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="$(FinalOutput)">
+      <Output
+        TaskParameter="Include"
+        ItemName="OutputFile"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_ResolveExternalTypesPch">
+    <CreateItem
+      Include="%(PrecompiledHeaderFile.RelativeDir)%(PrecompiledHeaderFile.Filename).#*"
+      Condition="'@(PrecompiledHeaderFile)'!=''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ExternalTypesPch"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_ResolveOther" DependsOnTargets="__SetProjectResourceFileName">
+
+    <!-- Link products -->
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).ilc')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkStateFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).ild')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkStateFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).ilf')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkStateFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).ils')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkStateFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).pdi')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkStateFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).ilr')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkStateFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(OutputFile->'%(RelativeDir)%(Filename).tds')"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkSymbolFile"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="$(ILINK_MapFileName)"
+      Condition="'$(TLibLink)'!='true' And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="ILinkMapFile"
+      />
+    </CreateItem>
+
+    <!-- Precompiled header file BCC32 -->
+    <CreateItem
+      Include="$(BCC_PCHName)"
+      Condition="('$(BCC_PCHUsage)'=='GenerateAndUse' Or '$(BCC_PCHUsage)'=='') And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="PrecompiledHeaderFile"
+      />
+    </CreateItem>
+
+    <!-- Precompiled header file BCC64 (CLANG) -->
+    <CreateItem
+      Include="@(PCHCompile->'$(BCC_OutputDir)%(FileName).pch')"
+      Condition="('$(BCC_PCHUsage)'=='GenerateAndUse' Or '$(BCC_PCHUsage)'=='') And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="PrecompiledHeaderFile"
+      />
+    </CreateItem>
+
+    <!-- Precompiled header file iOS ARM and Android (CLANG) -->
+    <CreateItem
+      Include="@(PCHCompile->'$(BCC_OutputDir)%(FileName).o')"
+      Condition="('$(BCC_PCHUsage)'=='GenerateAndUse' Or '$(BCC_PCHUsage)'=='') And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="PrecompiledHeaderFile"
+      />
+    </CreateItem>
+
+    <!-- Dependency files (CLANG) -->
+    <CreateItem
+      Include="@(CppCompile->'$(BCC_OutputDir)%(Filename).d')">
+      <Output
+        TaskParameter="Include"
+        ItemName="CLANG_DependencyFiles"
+      />
+    </CreateItem>
+
+    <CreateItem
+      Include="@(PCHCompile->'$(BCC_OutputDir)%(FileName).d')"
+      Condition="('$(BCC_PCHUsage)'=='GenerateAndUse' Or '$(BCC_PCHUsage)'=='') And '$(FileToCompile)'==''">
+      <Output
+        TaskParameter="Include"
+        ItemName="CLANG_DependencyFiles"
+      />
+    </CreateItem>
+
+    <!-- Package / DLL libraries -->
+    <CreateItem
+      Include="$(ILINK_BpiLibOutputDir)$(ILINK_PackageBaseName).$(BpiExt)"
+      Condition="'$(AppType)'=='Package' And '$(ILINK_GenerateImportLibrary)'=='true'">
+      <Output
+        TaskParameter="Include"
+        ItemName="ImportLibrary"
+      />
+    </CreateItem>
+
+    <CreateItem
+      Include="@(OutputFile->'$(FinalOutputDir)%(Filename).$(LibExt)')"
+      Condition="'$(AppType)'!='Package' And '$(ILINK_GenerateImportLibrary)'=='true'">
+      <Output
+        TaskParameter="Include"
+        ItemName="ImportLibrary"
+      />
+    </CreateItem>
+
+    <!-- DCC32 .hpp, .dcu, .obj etc. -->
+    <CreateItem
+      Include="@(DelphiCompile->'%(RelativeDir)%(Filename).hpp')"
+      Condition="'$(DCC_CBuilderOutput)'=='JPH'
+        Or '$(DCC_CBuilderOutput)'=='JPHN'
+        Or '$(DCC_CBuilderOutput)'=='JPHNE'
+        Or '$(DCC_CBuilderOutput)'=='JPHE'
+        Or '$(DCC_CBuilderOutput)'=='All'">
+      <Output
+        TaskParameter="Include"
+        ItemName="DCC_HppFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(DelphiCompile->'$(DCC_DcuOutput)%(Filename).dcu')">
+      <Output
+        TaskParameter="Include"
+        ItemName="CompiledDcus"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(DelphiCompile->'$(DCC_ObjOutput)%(Filename).$(ObjExt)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="DCC_ObjFiles"
+      />
+    </CreateItem>
+
+    <!-- TASM Listing and Cross-reference files -->
+    <CreateItem
+      Include="@(AsmCompile->'$(TASM_OutputDir)%(Filename).lst')"
+      Condition="'$(TASM_GenerateListingFile)'=='true'">
+      <Output
+        TaskParameter="Include"
+        ItemName="TASM_ListingFile"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="@(AsmCompile->'$(TASM_OutputDir)%(Filename).xref')"
+      Condition="'$(TASM_GenerateCrossRefFile)'=='true'">
+      <Output
+        TaskParameter="Include"
+        ItemName="TASM_CrossRefFile"
+      />
+    </CreateItem>
+
+    <!-- Generated <project>.info.plist for iOS and OSX platforms -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).info.plist')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).entitlements')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)ResourceRules.plist')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).dSYM')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)AndroidManifest.xml')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)splash_image_def.xml')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)styles.xml')">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <!-- Android classes.dex file -->
+    <CreateItem Include="@(OutputFile->'%(Rootdir)%(Directory)classes.dex')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+     <!-- .java source files for Android Services -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).java')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName)ProxyInterface.java')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+    <!-- .jar binary file for Android Services -->
+    <CreateItem Include="@(OutputFile->'%(RelativeDir)$(MSBuildProjectName).jar')"
+        Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+      <Output TaskParameter="Include" ItemName="OtherOutputFiles"/>
+    </CreateItem>
+
+  </Target>
+
+  <Target Name="_DepCheckFileToCompile">
+    <BccDependencyCheck
+      Condition="'@(CppFile)'!=''"
+      InputFiles="@(CppFile)"
+      OutputFile="$(BCC_OutputDir)%(CppFile.Filename)%(CppFile.Suffix).$(ObjExt)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="CppFiles"
+      />
+    </BccDependencyCheck>
+    <DependencyCheck
+      Condition="'@(AsmFile)'!=''"
+      InputFiles="@(AsmFile)"
+      OutputFile="$(TASM_OutputDir)%(AsmFile.Filename)%(AsmFile.Suffix).$(ObjExt)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="AsmFiles"
+      />
+    </DependencyCheck>
+    <DependencyCheck
+      Condition="'@(RcFile)'!=''"
+      InputFiles="@(RcFile)"
+      OutputFile="$(BRCC_OutputDir)%(RcFile.Filename).res"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      Build="$(ForceRebuild)"
+    >
+      <Output
+        TaskParameter="OutOfDate"
+        ItemName="RcFiles"
+      />
+    </DependencyCheck>
+  </Target>
+
+  <Target Name="_ExcludeFilesFromBuild">
+    <!-- .mm files support only for CLANG based platforms -->
+    <ItemGroup Condition="'$(Platform)'=='$(cOSX32Platform)' Or ('$(Platform)'=='$(cWin32Platform)' And '$(USING_CLANG_WIN32)'!='true')">
+        <CppCompile Remove="*.mm"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_ResolveFileToCompile" DependsOnTargets="_ResolveInput">
+    <CopyItem
+      Condition="('%(InputFile.Extension)'=='.h' Or '%(InputFile.Extension)'=='.cpp' Or '%(InputFile.Extension)'=='.c' Or '%(InputFile.Extension)'=='.cc' Or '%(InputFile.Extension)'=='.cxx') And '%(InputFile.ToolName)'==''"
+      Source="@(InputFile)">
+      <Output
+        TaskParameter="Dest"
+        ItemName="CppFile"
+      />
+    </CopyItem>
+    <CopyItem
+      Condition="('%(InputFile.Extension)'=='.mm') And '%(InputFile.ToolName)'=='' And ('$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)') "
+      Source="@(InputFile)">
+      <Output
+        TaskParameter="Dest"
+        ItemName="CppFile"
+      />
+    </CopyItem>
+    <CopyItem
+      Condition="'%(InputFile.Extension)'=='.rc' And '%(InputFile.ToolName)'==''"
+      Source="@(InputFile)">
+      <Output
+        TaskParameter="Dest"
+        ItemName="RcFile"
+      />
+    </CopyItem>
+    <CopyItem
+      Condition="'%(InputFile.Extension)'=='.asm' And '%(InputFile.ToolName)'==''"
+      Source="@(InputFile)">
+      <Output
+        TaskParameter="Dest"
+        ItemName="AsmFile"
+      />
+    </CopyItem>
+    <CopyItem
+      Condition="'%(InputFile.Extension)'=='.ridl' And '%(InputFile.ToolName)'==''"
+      Source="@(InputFile)">
+      <Output
+        TaskParameter="Dest"
+        ItemName="RidlFile"
+      />
+    </CopyItem>
+
+    <CreateItem
+      Condition="('%(InputFile.Extension)'=='.cpp' Or '%(InputFile.Extension)'=='.c' Or '%(InputFile.Extension)'=='.cc') And '%(InputFile.ToolName)'==''"
+      Include="@(InputFile->'$(BCC_OutputDir)%(filename)%(Suffix).$(ObjExt)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="OutputFile"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'%(InputFile.Extension)'=='.rc' And '%(InputFile.ToolName)'==''"
+      Include="@(InputFile->'$(BRCC_OutputDir)%(Suffix)%(filename).res')">
+      <Output
+        TaskParameter="Include"
+        ItemName="OutputFile"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'%(InputFile.Extension)'=='.asm' And '%(InputFile.ToolName)'==''"
+      Include="@(InputFile->'$(TASM_OutputDir)%(Suffix)%(filename).$(ObjExt)')">
+      <Output
+        TaskParameter="Include"
+        ItemName="OutputFile"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'%(InputFile.Extension)'=='.ridl' And '%(InputFile.ToolName)'==''"
+      Include="$(GENTLB_OutputDir)$(GENTLB_OutputName)">
+      <Output
+        TaskParameter="Include"
+        ItemName="OutputFile"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_ResolveOutput" DependsOnTargets="$(_ResolveOutputDependsOn)"/>
+  <Target Name="ResolveFiles" DependsOnTargets="_ResolveInput;_ResolveOutput"/>
+
+  <Target Name="_ResolveGENTLBBindings">
+    <CreateItem
+      Include="$(MSBuildProjectName)_TLB.cpp">
+      <Output
+        TaskParameter="Include"
+        ItemName="GENTLB_Bindings"
+      />
+    </CreateItem>
+    <CreateItem
+      Include="$(MSBuildProjectName)_TLB.h">
+      <Output
+        TaskParameter="Include"
+        ItemName="GENTLB_Bindings"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_ForceRebuild">
+    <CreateProperty
+      Value="true">
+      <Output
+        TaskParameter="Value"
+        PropertyName="ForceRebuild"
+      />
+    </CreateProperty>
+    <CreateProperty
+      Value="true">
+      <Output
+        TaskParameter="Value"
+        PropertyName="ForceLink"
+      />
+    </CreateProperty>
+  </Target>
+
+  <Target Name="_GatherOutputs" DependsOnTargets="ResolveFiles">
+    <Message Text="CompiledObjs: @(CompiledObjs)"/>
+    <Message Text="CompiledResources: @(CompiledResources)"/>
+    <Message Text="OutputFile: @(OutputFile)"/>
+    <Message Text="ILinkSymbolFile: @(ILinkSymbolFile)"/>
+    <Message Text="ILinkMapFile: @(ILinkMapFile)"/>
+    <Message Text="PrecompiledHeaderFile: @(PrecompiledHeaderFile)"/>
+    <Message Text="ImportLibrary: @(ImportLibrary)"/>
+    <Message Text="PackageLib: @(PackageLib)"/>
+    <Message Text="DCC_HppFiles: @(DCC_HppFiles)"/>
+    <Message Text="CompiledDcus: @(CompiledDcus)"/>
+    <Message Text="TASM_ListingFile: @(TASM_ListingFile)"/>
+    <Message Text="TASM_CrossRefFile: @(TASM_CrossRefFile)"/>
+
+    <CreateItem
+      Include="@(CompiledObjs);@(CompiledResources);@(OutputFile);@(ILinkSymbolFile);$(ILinkMapFile);@(PrecompiledHeaderFile);@(ImportLibrary);@(PackageLib);@(DCC_HppFiles);@(CompiledDcus);@(TASM_ListingFile);@(TASM_CrossRefFile)">
+      <Output
+        TaskParameter="Include"
+        ItemName="__OutputFiles"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="MakeObjs">
+    <CallTarget Targets="_CoreCompile"/>
+  </Target>
+
+  <Target Name="_CoreCompile" DependsOnTargets="$(CoreCompileDependsOnTargets)"/>
+
+  <Target Name="_MakeOne" DependsOnTargets="_ResolveInput;_ResolveFileToCompile;_DepCheckFileToCompile">
+    <CallTarget Targets="_RidlCoreCompile" Condition="'@(RidlFiles)'!=''"/>
+    <CallTarget Targets="_CppCoreCompile" Condition="'@(CppFiles)'!=''"/>
+    <CallTarget Targets="_RcCoreCompile" Condition="'@(RcFiles)'!=''"/>
+    <CallTarget Targets="_AsmCoreCompile" Condition="'@(AsmFiles)'!=''"/>
+    <CallTarget Targets="_RunUserTools" Condition="'%(InputFile.ToolName)'!=''"/>
+  </Target>
+
+  <Target Name="CppCompile" DependsOnTargets="_CppDepCheck;_PCHDepCheck">
+    <CallTarget Targets="_CppCoreCompile"/>
+  </Target>
+
+  <Target Name="_CppCoreCompile">
+    <CallTarget Targets="_CLANGCoreCompile" Condition="$(USING_CLANG)"/>
+    <CallTarget Targets="_BCC32CoreCompile" Condition="!$(USING_CLANG)"/>
+  </Target>
+
+  <Target Name="MakeStaticPackage"
+    Condition="'$(ProjectType)'=='CppPackage' And '$(ILINK_GenerateLibFile)'=='true' and '$(_DoingStaticPackageBuild)'!='true'">
+    <InvokeMSBuild
+      Project="$(MSBuildProjectFullPath)"
+      Targets="Make"
+      Properties="_DoingStaticPackageBuild=true;Config=$(Config);Platform=$(Platform);BDSINCLUDE=$(BDSINCLUDE);ForceRebuild=$(ForceRebuild);DCC_CBuilderOutput=JPHN;DCC_ObjOutput=$(DCC_ObjOutput);TLibLink=true;BCC_OutputDir=$(BCC_OutputDir);FinalOutput=$(ILINK_BpiLibOutputDir)$(StaticLibPrefix)$(ILINK_PackageBaseName).$(LibExt)"
+    />
+  </Target>
+
+  <Target Name="StaticPackageClean"
+    Condition="'$(ProjectType)'=='CppPackage' And '$(ILINK_GenerateLibFile)'=='true' and '$(_DoingStaticPackageBuild)'!='true'">
+    <InvokeMSBuild
+      Project="$(MSBuildProjectFullPath)"
+      Targets="Clean"
+      Properties="_DoingStaticPackageBuild=true;Config=$(Config);Platform=$(Platform);DCC_CBuilderOutput=JPHN;DCC_ObjOutput=$(DCC_ObjOutput);TLibLink=true;BCC_OutputDir=$(BCC_OutputDir);FinalOutput=$(ILINK_BpiLibOutputDir)$(StaticLibPrefix)$(ILINK_PackageBaseName).$(LibExt)"
+    />
+  </Target>
+
+
+  <Target Name="_BCC32CoreCompile" Outputs="%(CppFiles.Identity)">
+    <BCC32
+      Condition="(('@(CppFiles)'!='' And '%(CppFiles.OptionOverrides)'!='true') Or '$(FileToCompile)'!='') Or '$(_KibitzTask)'!=''"
+      Compile="@(CppFiles)"
+      ForceExecute="true"
+      KibitzTask="$(_KibitzTask)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      PlatformTarget="$(Platform)"
+      PreventPCHInjection="%(CppFiles.BCC_PreventPCHInjection)"
+      OutputFilename="$(BCC_OutputDir)%(CppFiles.Filename)%(CppFiles.Suffix).$(ObjExt)"
+      ShowStdOut="$(ShowStdOut)"
+      RunOutOfProcess="$(RunBCCOutOfProcess)"
+      Defines="$(BCC_Defines)"
+      InternalDefines="$(BCC_InternalDefines)"
+      Undefines="$(BCC_Undefines)"
+      TargetOutputDir="$(BCC_TargetOutputDir)"
+      OutputDir="$(BCC_OutputDir)"
+      SysRoot="$(Profile_SysRoot)"
+      IncludePath="$(BCC_IncludePath)"
+      SysIncludePath="$(ProfileIncludePath)"
+      FrameworkRoot="$(ProfileFrameworkPath)"
+      WindowsVersionDefines="$(BCC_WindowsVersionDefines)"
+      DebugLineNumbers="$(BCC_DebugLineNumbers)"
+      SourceDebuggingOn="$(BCC_SourceDebuggingOn)"
+      InlineFunctionExpansion="$(BCC_InlineFunctionExpansion)"
+      CodeView4DebugInfo="$(BCC_CodeView4DebugInfo)"
+      AllCodeguardOptions="$(BCC_AllCodeguardOptions)"
+      MonitorInlinePtrAccess="$(BCC_MonitorInlinePtrAccess)"
+      MonitorGlobalAndStackData="$(BCC_MonitorGlobalAndStackData)"
+      MonitorThis="$(BCC_MonitorThis)"
+      CodeguardDebugLevel="$(BCC_CodeguardDebugLevel)"
+      SuppressBanner="$(BCC_SuppressBanner)"
+      ExtendedErrorInfo="$(BCC_ExtendedErrorInfo)"
+      IntegerSizedEnums="$(BCC_IntegerSizedEnums)"
+      IntegerTypeEnums="$(BCC_IntegerTypeEnums)"
+      StackFrames="$(BCC_StackFrames)"
+      CPPCompileAlways="$(BCC_CPPCompileAlways)"
+      InstructionSet="$(BCC_InstructionSet)"
+      DataAlignment="$(BCC_DataAlignment)"
+      CallingConvention="$(BCC_CallingConvention)"
+      UseRegisterVariables="$(BCC_UseRegisterVariables)"
+      LanguageCompliance="$(BCC_LanguageCompliance)"
+      EnableBatchCompilation="$(BCC_EnableBatchCompilation)"
+      StopBatchAfterWarnings="$(BCC_StopBatchAfterWarnings)"
+      StopBatchAfterErrors="$(BCC_StopBatchAfterErrors)"
+      StopBatchAfterFirstError="$(BCC_StopBatchAfterFirstError)"
+      NoLink="$(BCC_NoLink)"
+      AutoDepCheck="$(BCC_AutoDepCheck)"
+      VirtualTables="$(BCC_VirtualTables)"
+      TemplateGeneration="$(BCC_TemplateGeneration)"
+      MemberPtrKind="$(BCC_MemberPtrKind)"
+      HonorMemPtrPrecision="$(BCC_HonorMemPtrPrecision)"
+      EnableRTTI="$(BCC_EnableRTTI)"
+      EnableExceptionHandling="$(BCC_EnableExceptionHandling)"
+      DestructorCleanup="$(BCC_DestructorCleanup)"
+      GlobalDestructorCount="$(BCC_GlobalDestructorCount)"
+      NoDllOrMTDestructorCleanup="$(BCC_NoDllOrMTDestructorCleanup)"
+      FastExceptionPrologs="$(BCC_FastExceptionPrologs)"
+      ExceptionLocationInfo="$(BCC_ExceptionLocationInfo)"
+      SlowExceptionEpilogues="$(BCC_SlowExceptionEpilogues)"
+      HideExceptionVars="$(BCC_HideExceptionVars)"
+      MergeDuplicateStrings="$(BCC_MergeDuplicateStrings)"
+      StringsInReadOnlyDataSeg="$(BCC_StringsInReadOnlyDataSeg)"
+      StringsInWriteableDataSeg="$(BCC_StringsInWriteableDataSeg)"
+      FastFloatingPoint="$(BCC_FastFloatingPoint)"
+      CorrectFDIVFlaw="$(BCC_CorrectFDIVFlaw)"
+      QuietFloatingPoint="$(BCC_QuietFloatingPoint)"
+      NestedComments="$(BCC_NestedComments)"
+      MaxIdentifierLength="$(BCC_MaxIdentifierLength)"
+      AsmToObj="$(BCC_AsmToObj)"
+      Assembler="$(BCC_Assembler)"
+      AssemblerOptions="$(BCC_AssemblerOptions)"
+      CompileToAssembly="$(BCC_CompileToAssembly)"
+      CompileToAssemblyOutputFilename="$(BCC_CompileToAssemblyOutputFilename)"
+      UserSuppliedOptions="$(BCC_UserSuppliedOptions)"
+      EnableCodePaging="$(BCC_EnableCodePaging)"
+      ExecutionCharacterSet="$(BCC_ExecutionCharacterSet)"
+      DefaultCharUnsigned="$(BCC_DefaultCharUnsigned)"
+      LinkWithDynamicRTL="$(BCC_LinkWithDynamicRTL)"
+      GenerateConsoleApp="$(BCC_GenerateConsoleApp)"
+      GenerateDLL="$(BCC_GenerateDLL)"
+      GenerateMultithreaded="$(BCC_GenerateMultithreaded)"
+      GenerateUnicode="$(BCC_GenerateUnicode)"
+      GenerateWindowsApp="$(BCC_GenerateWindowsApp)"
+      GlobalFuncsInOwnSegment="$(BCC_GlobalFuncsInOwnSegment)"
+      DontMangleCCInSymbolNames="$(BCC_DontMangleCCInSymbolNames)"
+      MSHeaderSearchAlgorithm="$(BCC_MSHeaderSearchAlgorithm)"
+      BackwardCompatibility="$(BCC_BackwardCompatibility)"
+      AllowNonConstCalls="$(BCC_AllowNonConstCalls)"
+      OldOverloadRules="$(BCC_OldOverloadRules)"
+      NonConstRefBinding="$(BCC_NonConstRefBinding)"
+      StringLiteralsNonConst="$(BCC_StringLiteralsNonConst)"
+      OldUsingRules="$(BCC_OldUsingRules)"
+      OldRefTypes="$(BCC_OldRefTypes)"
+      OldTernaryOperators="$(BCC_OldTernaryOperators)"
+      OldForStatementScoping="$(BCC_OldForStatementScoping)"
+      DisableDigraphScanner="$(BCC_DisableDigraphScanner)"
+      DOSHeaderSearchAlgorithm="$(BCC_DOSHeaderSearchAlgorithm)"
+      NewOperatorNames="$(BCC_NewOperatorNames)"
+      AllCompatibilityFlags="$(BCC_AllCompatibilityFlags)"
+      ReverseOrderForMultiCharConst="$(BCC_ReverseOrderForMultiCharConst)"
+      NativeCodeForMultiByte="$(BCC_NativeCodeForMultiByte)"
+      VCCompatibility="$(BCC_VCCompatibility)"
+      OldBorlandClassLayout="$(BCC_OldBorlandClassLayout)"
+      OldStyleVirdef="$(BCC_OldStyleVirdef)"
+      OldStyleClassArgs="$(BCC_OldStyleClassArgs)"
+      OldStyleTemplateSpec="$(BCC_OldStyleTemplateSpec)"
+      ExplicitSpecializationAsMemberFunc="$(BCC_ExplicitSpecializationAsMemberFunc)"
+      ConstructorDisplacements="$(BCC_ConstructorDisplacements)"
+      PushThisFirst="$(BCC_PushThisFirst)"
+      VTablePtrAtFront="$(BCC_VTablePtrAtFront)"
+      SlowVirtualBasePtrs="$(BCC_SlowVirtualBasePtrs)"
+      ZeroLengthEmptyMemberFuncs="$(BCC_ZeroLengthEmptyMemberFuncs)"
+      ZeroLengthEmptyBaseClass="$(BCC_ZeroLengthEmptyBaseClass)"
+      PCHName="$(BCC_PCHName)"
+      PCHInject="$(BCC_PCHInject)"
+      PCHUsage="$(BCC_PCHUsage)"
+      PCHWithExternalTypeFiles="$(BCC_PCHWithExternalTypeFiles)"
+      IncludeContentsOfHeaders="$(BCC_IncludeContentsOfHeaders)"
+      PCHCache="$(BCC_PCHCache)"
+      StopPCHAfter="$(BCC_StopPCHAfter)"
+      ReplaceHeaderName="$(BCC_ReplaceHeaderName)"
+      SmartPCHCache="$(BCC_SmartPCHCache)"
+      SaveMem="$(BCC_SaveMem)"
+      UTF8Output="$(BCC_UTF8Output)"
+      NoAutodependency="$(BCC_NoAutodependency)"
+      IgnoreSystemHeaders="$(BCC_IgnoreSystemHeaders)"
+      UnderscoreSymbolNames="$(BCC_UnderscoreSymbolNames)"
+      DontUnderscoreExportedSymbolNames="$(BCC_DontUnderscoreExportedSymbolNames)"
+      OutputBrowserInfo="$(BCC_OutputBrowserInfo)"
+      WarningIsError="$(BCC_WarningIsError)"
+      AllWarnings="$(BCC_AllWarnings)"
+      DisableWarnings="$(BCC_DisableWarnings)"
+      SelectedWarnings="$(BCC_SelectedWarnings)"
+      wamb="$(BCC_wamb)"
+      wamp="$(BCC_wamp)"
+      wasc="$(BCC_wasc)"
+      wasm="$(BCC_wasm)"
+      waus="$(BCC_waus)"
+      wbbf="$(BCC_wbbf)"
+      wbei="$(BCC_wbei)"
+      wbig="$(BCC_wbig)"
+      wccc="$(BCC_wccc)"
+      wcln="$(BCC_wcln)"
+      wcom="$(BCC_wcom)"
+      wcpt="$(BCC_wcpt)"
+      wcsu="$(BCC_wcsu)"
+      wdef="$(BCC_wdef)"
+      wdig="$(BCC_wdig)"
+      wdpu="$(BCC_wdpu)"
+      wdsz="$(BCC_wdsz)"
+      wdup="$(BCC_wdup)"
+      weas="$(BCC_weas)"
+      weff="$(BCC_weff)"
+      wext="$(BCC_wext)"
+      whch="$(BCC_whch)"
+      whid="$(BCC_whid)"
+      wias="$(BCC_wias)"
+      wibc="$(BCC_wibc)"
+      will="$(BCC_will)"
+      winl="$(BCC_winl)"
+      wlin="$(BCC_wlin)"
+      wlvc="$(BCC_wlvc)"
+      wmpc="$(BCC_wmpc)"
+      wmpd="$(BCC_wmpd)"
+      wmsg="$(BCC_wmsg)"
+      wnak="$(BCC_wnak)"
+      wncf="$(BCC_wncf)"
+      wnci="$(BCC_wnci)"
+      wncl="$(BCC_wncl)"
+      wnfd="$(BCC_wnfd)"
+      wngu="$(BCC_wngu)"
+      wnin="$(BCC_wnin)"
+      wnma="$(BCC_wnma)"
+      wnmu="$(BCC_wnmu)"
+      wnod="$(BCC_wnod)"
+      wnop="$(BCC_wnop)"
+      wnsf="$(BCC_wnsf)"
+      wnst="$(BCC_wnst)"
+      wntd="$(BCC_wntd)"
+      wnto="$(BCC_wnto)"
+      wnvf="$(BCC_wnvf)"
+      wobi="$(BCC_wobi)"
+      wobs="$(BCC_wobs)"
+      wofp="$(BCC_wofp)"
+      wosh="$(BCC_wosh)"
+      wovf="$(BCC_wovf)"
+      wpar="$(BCC_wpar)"
+      wpch="$(BCC_wpch)"
+      wpck="$(BCC_wpck)"
+      wpia="$(BCC_wpia)"
+      wpin="$(BCC_wpin)"
+      wpow="$(BCC_wpow)"
+      wpre="$(BCC_wpre)"
+      wpro="$(BCC_wpro)"
+      wrch="$(BCC_wrch)"
+      wret="$(BCC_wret)"
+      wrng="$(BCC_wrng)"
+      wrpt="$(BCC_wrpt)"
+      wrvl="$(BCC_wrvl)"
+      wsig="$(BCC_wsig)"
+      wspa="$(BCC_wspa)"
+      wstu="$(BCC_wstu)"
+      wstv="$(BCC_wstv)"
+      wsus="$(BCC_wsus)"
+      wtai="$(BCC_wtai)"
+      wtes="$(BCC_wtes)"
+      wthr="$(BCC_wthr)"
+      wucp="$(BCC_wucp)"
+      wuse="$(BCC_wuse)"
+      wvoi="$(BCC_wvoi)"
+      wzdi="$(BCC_wzdi)"
+      wnpp="$(BCC_wnpp)"
+      wprc="$(BCC_wprc)"
+      wifr="$(BCC_wifr)"
+      wali="$(BCC_wali)"
+      wstl="$(BCC_wstl)"
+      wcod="$(BCC_wcod)"
+      wpcm="$(BCC_wpcm)"
+      wmes="$(BCC_wmes)"
+      wmcs="$(BCC_wmcs)"
+      wonr="$(BCC_wonr)"
+      wmcc="$(BCC_wmcc)"
+      wpsb="$(BCC_wpsb)"
+      watr="$(BCC_watr)"
+      wexc="$(BCC_wexc)"
+      wimp="$(BCC_wimp)"
+      wptl="$(BCC_wptl)"
+      wmls="$(BCC_wmls)"
+      wmnc="$(BCC_wmnc)"
+      wntn="$(BCC_wntn)"
+      wcni="$(BCC_wcni)"
+      wpad="$(BCC_wpad)"
+      wdat="$(BCC_wdat)"
+      wdpr="$(BCC_wdpr)"
+      wdex="$(BCC_wdex)"
+      wiex="$(BCC_wiex)"
+      wucn="$(BCC_wucn)"
+      winc="$(BCC_winc)"
+      wrlo="$(BCC_wrlo)"
+      wiip="$(BCC_wiip)"
+      wmal="$(BCC_wmal)"
+      wbex="$(BCC_wbex)"
+      wiac="$(BCC_wiac)"
+      wmtx="$(BCC_wmtx)"
+      wpnf="$(BCC_wpnf)"
+      wnrm="$(BCC_wnrm)"
+      weoi="$(BCC_weoi)"
+      wbcx="$(BCC_wbcx)"
+      wdlx="$(BCC_wdlx)"
+      wdim="$(BCC_wdim)"
+      wdgu="$(BCC_wdgu)"
+      wdiu="$(BCC_wdiu)"
+      wdin="$(BCC_wdin)"
+      wind="$(BCC_wind)"
+      wsmx="$(BCC_wsmx)"
+      wadt="$(BCC_wadt)"
+      wpun="$(BCC_wpun)"
+      witl="$(BCC_witl)"
+      wtlb="$(BCC_wtlb)"
+      wpns="$(BCC_wpns)"
+      OptimizeForSize="$(BCC_OptimizeForSize)"
+      DisableOptimizations="$(BCC_DisableOptimizations)"
+      OptimizeForSpeed="$(BCC_OptimizeForSpeed)"
+      SelectedOptimizations="$(BCC_SelectedOptimizations)"
+      OptimizeJumps="$(BCC_OptimizeJumps)"
+      PentiumInstructionScheduling="$(BCC_PentiumInstructionScheduling)"
+      EliminateDeadStore="$(BCC_EliminateDeadStore)"
+      EliminateDuplicateExpressions="$(BCC_EliminateDuplicateExpressions)"
+      ExpandIntrinsics="$(BCC_ExpandIntrinsics)"
+      LoopInductionReduction="$(BCC_LoopInductionReduction)"
+      OptimizeVariables="$(BCC_OptimizeVariables)"
+    >
+        <Output
+                TaskParameter="ObjFiles"
+                ItemName="BCC_ObjFiles"/>
+        <Output
+                TaskParameter="PrecompiledHeaderFile"
+                ItemName="BCC_PrecompiledHeaderFile"/>
+    </BCC32>
+
+    <InvokeMSBuild
+      Condition="('%(CppFiles.OptionOverrides)'=='true' Or '%(CppFiles.HasBuildEvent)'=='true') And '$(FileToCompile)'==''"
+      Project="$(MSBuildProjectFullPath)"
+      Targets="MakeOne"
+      Properties="FileToCompile=%(CppFiles.Identity);Config=$(Config);Platform=$(Platform);ForceRebuild=$(ForceRebuild)"
+    />
+  </Target>
+
+  <Target Name="__CLANGPreprocessCreate" DependsOnTargets="$(PreprocessDependsOnTargets);">
+    <PropertyGroup>
+      <CLANG_RunPreprocessor>true</CLANG_RunPreprocessor>
+      <CLANG_OutputFileName>$(PreprocessOutputFilename)</CLANG_OutputFileName>
+      <CLANG_EmitNativeObject>false</CLANG_EmitNativeObject>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <CppFiles Include="@(InputFile)"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CLANGPreprocess" DependsOnTargets="__CLANGPreprocessCreate;_CLANGCoreCompile"/>
+
+  <Target Name="_CLANGCoreCompile" Outputs="%(CppFiles.Identity)">
+    <!--Clang properties to check for each file to compile-->
+    <PropertyGroup Condition=" '!$(CLANG_RunPreprocessor)' ">
+      <BCC_PCHName_Clang Condition=" '%(PCHCompile.Identity)'=='$(BCC_PCHName_Clang)' and '%(PCHCompile.Identity)'!='' ">$(BCC_OutputDir)%(PCHCompile.FileName).pch</BCC_PCHName_Clang>
+      <CLANG_IncludePCH Condition=" '%(CppFiles.PCH)'!='true' And '$(BCC_PCHUsage)'!='None' ">true</CLANG_IncludePCH>
+      <CLANG_IncludePCH Condition=" '%(CppFiles.Extension)'=='.mm' Or ('%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'!='true')">false</CLANG_IncludePCH>
+      <CLANG_IncludePCH Condition=" '$(CLANG_CompileOnlyPCH)'=='true' Or !Exists('$(BCC_PCHName_Clang)') ">false</CLANG_IncludePCH>
+      <CLANG_DependencyFile Condition="'$(USING_CLANG_WIN32)'!='true' and '%(CppFiles.PCH)'!='true' and '%(CppFiles.Filename)'!=''">$(BCC_OutputDir)%(CppFiles.Filename).d</CLANG_DependencyFile>
+      <CLANG_DependencyFileTarget Condition=" '%(CppFiles.PCH)'!='true' and '%(CppFiles.Filename)'!=''">$(BCC_OutputDir)%(CppFiles.Filename).$(ObjExt)</CLANG_DependencyFileTarget>
+      <CLANG_DependencyIncDepHeaders Condition=" '$(CLANG_CompileOnlyPCH)'=='true' or '%(CppFiles.PCH)'=='true' or '%(CppFiles.Filename)'==''"></CLANG_DependencyIncDepHeaders>
+      <CLANG_OutputFileName Condition=" '%(CppFiles.PCH)'!='true' and '%(CppFiles.Filename)'!=''">$(BCC_OutputDir)%(CppFiles.Filename)%(CppFiles.Suffix).$(ObjExt)</CLANG_OutputFileName>
+      <CLANG_OutputFileName Condition=" ('$(CLANG_CompileOnlyPCH)'=='true' or '%(CppFiles.PCH)'=='true') and '%(CppFiles.Filename)'!=''">$(BCC_OutputDir)%(CppFiles.Filename).pch</CLANG_OutputFileName>
+      <CLANG_EmitNativeObject Condition=" '$(CLANG_CompileOnlyPCH)'=='true' or '%(CppFiles.PCH)'=='true' ">false</CLANG_EmitNativeObject>
+      <CLANG_InputLanguageType Condition=" '%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'=='true' ">c++</CLANG_InputLanguageType>
+      <CLANG_InputLanguageType Condition=" '%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'!='true' ">c</CLANG_InputLanguageType>
+      <CLANG_InputLanguageType Condition=" '%(CppFiles.Extension)'=='.mm'">objective-c++</CLANG_InputLanguageType>
+      <CLANG_LanguageStandard Condition=" '%(CppFiles.Extension)'=='.mm' Or ('%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'=='true') ">c++11</CLANG_LanguageStandard>
+      <CLANG_LanguageStandard Condition=" '%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'!='true' ">c99</CLANG_LanguageStandard>
+      <CLANG_MainFileName Condition=" $(BCC_SourceDebuggingOn) == 'true' And '%(CppFiles.PCH)'!='true' ">%(CppFiles.FileName)%(CppFiles.Extension)</CLANG_MainFileName>
+      <CLANG_EmitPCH Condition="'%(CppFiles.PCH)'=='true' Or '$(CLANG_CompileOnlyPCH)'=='true'">true</CLANG_EmitPCH>
+    </PropertyGroup>
+
+    <CLANG Condition="(('@(CppFiles)'!='' And '%(CppFiles.OptionOverrides)'!='true') Or '$(FileToCompile)'!='') Or '$(_KibitzTask)'!=''"
+      Compile="@(CppFiles)"
+
+      AllWarnings="$(BCC_AllWarnings)"
+      BorlandExtensions="$(CLANG_BorlandExtensions)"
+      BorlandDiagnosticFormat="$(CLANG_BorlandDiagnosticFormat)"
+      BorlandAutoRefCount="$(CLANG_BorlandAutoRefCount)"
+      Defines="$(BCC_Defines)"
+      DisableCPPAccesControls="$(BCC_DisableCPPAccesControls)"
+      DisableFramePtrElimOpt="$(CLANG_DisableFramePtrElimOpt)"
+      DisableRttiGenerationInfo="$(BCC_DisableRttiGenerationInfo)"
+      DisableSpellChecking="$(BCC_DisableSpellChecking)"
+      DisableWarnings="$(BCC_DisableWarnings)"
+
+      EmitLLVM="$(CLANG_EmitLLVM)"
+      EmitNativeObject="$(CLANG_EmitNativeObject)"
+	  UseBorlandABI="$(CLANG_UseBorlandABI)"
+      EmitPCH="$(CLANG_EmitPCH)"
+      EnableCPPExceptions="$(CLANG_EnableCPPExceptions)"
+      EnableExceptions="$(CLANG_EnableExceptions)"
+      ForceExecute="true"
+      GenerateConsoleApp="$(BCC_GenerateConsoleApp)"
+      GenerateDLL="$(BCC_GenerateDLL)"
+      GeneratePackage="$(BCC_GeneratePackage)"
+      GenerateMultithreaded="$(BCC_GenerateMultithreaded)"
+      GenerateUnicode="$(BCC_GenerateUnicode)"
+      GenerateWindowsApp="$(BCC_GenerateWindowsApp)"
+
+      IncludePath="$(BCC_IncludePath)"
+      IncludePCH="$(CLANG_IncludePCH)"
+      SysIncludePath="$(ProfileIncludePath)"
+      IWithSysRoot="$(BCC_IWithSysRoot)"
+      IDirAfter="$(BCC_IDirAfter)"
+      FrameworkRoot="$(BCC_FrameworkRoot)"
+      InputLanguageType="$(CLANG_InputLanguageType)"
+      InternalDefines="$(BCC_InternalDefines)"
+      KibitzTask="$(_KibitzTask)"
+      LanguageStandard="$(CLANG_LanguageStandard)"
+      MainFileName="$(CLANG_MainFileName)"
+
+      RelocationModel="$(CLANG_RelocationModel)"
+      UsePosIndCodeForObjectFile="$(CLANG_UsePosIndCodeForObjectFile)"
+      GenVerboseAssemblyOutput="$(CLANG_GenVerboseAssemblyOutput)"
+      TargetABI="$(CLANG_TargetABI)"
+      TargetCPU="$(CLANG_TargetCPU)"
+      UseFloatABI="$(UseFloatABI)"
+      NotUseCppHeaders="$(CLANG_NotUseCppHeaders)"
+      DefineDeprecatedMacros="$(CLANG_DefineDeprecatedMacros)"
+      MacMessageLenght="$(CLANG_MacMessageLenght)"
+
+      UseSjLjExcpetions="$(CLANG_UseSjLjExcpetions)"
+      UseMappableDiagnostics="$(CLANG_UseMappableDiagnostics)"
+      UseColorsDiagnostics="$(CLANG_UseColorsDiagnostics)"
+
+      EmitConstructorAliases="$(CLANG_EmitConstructorAliases)"
+
+      No__cxa_atexit_ForDestructors="$(CLANG_No__cxa_atexit_ForDestructors)"
+      NoBuiltInc="$(CLANG_NoBuiltInc)"
+      NoImplicitFloat="$(CLANG_NoImplicitFloat)"
+      NoStdSystemInc="$(CLANG_NoStdSystemInc)"
+
+      OptimizationLevel="$(BCC_OptimizationLevel)"
+      OptimizeForSize="$(BCC_OptimizeForSize)"
+      OptimizeForSpeed="$(BCC_OptimizeForSpeed)"
+      OptimizeForSizeIgnoreSpeed="$(BCC_OptimizeForSizeIgnoreSpeed)"
+      DisableOptimizations="$(BCC_DisableOptimizations)"
+
+      OutputDir="$(CLANG_OutputDir)"
+      SysRoot="$(CLANG_SysRoot)"
+      OutputFilename="$(CLANG_OutputFileName)"
+
+      DependencyFile="$(CLANG_DependencyFile)"
+      DependencyFileTarget="$(CLANG_DependencyFileTarget)"
+      DependencyIncDepHeaders="$(CLANG_DependencyIncDepHeaders)"
+
+      PCHName="$(BCC_PCHName_Clang)"
+      PCHUsage="$(BCC_PCHUsage)"
+
+      PlatformTarget="$(Platform)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+
+      EnableBatchCompilation="$(CLANG_EnableBatchCompilation)"
+      RunOutOfProcess="$(RunBCCOutOfProcess)"
+      SubProcessesNumber="$(CLANG_SubProcessesNumber)"
+      RunPreprocessor="$(CLANG_RunPreprocessor)"
+
+	  FunctionSections="$(CLANG_FunctionSections)"
+	  NoThreadsafeStatics="$(CLANG_NoThreadsafeStatics)"
+      SEH="$(CLANG_SEH)"
+      SetErrorLimit="$(BCC_SetErrorLimit)"
+      ShortEnum="$(BCC_ShortEnum)"
+      LinkWithDynamicRTL="$(BCC_LinkWithDynamicRTL)"
+
+      ShowStdOut="$(ShowStdOut)"
+
+      SourceDebuggingOn="$(BCC_SourceDebuggingOn)"
+
+      StackRealign="$(CLANG_StackRealign)"
+
+      EnableBlocksLangFeature="$(CLANG_EnableBlocksLangFeature)"
+
+      SystemIncludePath="$(BCC_SystemIncludePath)"
+
+      TargetOutputDir="$(BCC_TargetOutputDir)"
+      TargetTriple="$(CLANG_TargetTriple)"
+      Undefines="$(BCC_Undefines)"
+      UnwindTables="$(CLANG_UnwindTables)"
+
+      UserSuppliedOptions="$(BCC_UserSuppliedOptions)"
+      WarningIsError="$(BCC_WarningIsError)"
+
+      WindowsVersionDefines="$(BCC_WindowsVersionDefines)"
+    >
+        <Output
+                TaskParameter="ObjFiles"
+                ItemName="BCC_ObjFiles"/>
+    </CLANG>
+
+    <InvokeMSBuild
+      Condition="('%(CppFiles.OptionOverrides)'=='true' Or '%(CppFiles.HasBuildEvent)'=='true') And '$(FileToCompile)'==''"
+      Project="$(MSBuildProjectFullPath)"
+      Targets="MakeOne"
+      Properties="FileToCompile=%(CppFiles.Identity);Config=$(Config);Platform=$(Platform);ForceRebuild=$(ForceRebuild)"
+    />
+  </Target>
+
+
+  <Target Name="__CompilePCH">
+    <!-- Compile precompiled header only and remove from CppBatchFiles item group -->
+    <InvokeMSBuild Condition="'%(CppFiles.PCH)'=='true'"
+      Project="$(MSBuildProjectFullPath)"
+      Targets="MakeOne"
+      Properties="FileToCompile=%(CppFiles.Identity);Config=$(Config);CLANG_CompileOnlyPCH=true;BCC_EnableBatchCompilation=false;Platform=$(Platform);ForceRebuild=$(ForceRebuild)"
+    />
+    <ItemGroup>
+        <CppBatchFiles Remove="*.h"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_CLANGCppBatchCompile" DependsOnTargets="__CompilePCH">
+
+
+    <PropertyGroup>
+      <BCC_PCHName_Clang Condition=" '%(PCHCompile.Identity)'=='$(BCC_PCHName_Clang)' and '%(PCHCompile.Identity)'!='' ">$(BCC_OutputDir)%(PCHCompile.FileName).pch</BCC_PCHName_Clang>
+      <CLANG_IncludePCH Condition=" '%(CppBatchFiles.PCH)'!='true' And '$(BCC_PCHUsage)'!='None' ">true</CLANG_IncludePCH>
+      <CLANG_IncludePCH Condition=" '%(CppFiles.Extension)'=='.mm' Or ('%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'!='true')">false</CLANG_IncludePCH>
+      <CLANG_IncludePCH Condition=" !Exists('$(BCC_PCHName_Clang)') ">false</CLANG_IncludePCH>
+      <CLANG_DependencyIncDepHeaders Condition=" '%(CppBatchFiles.PCH)'=='true' or '%(CppBatchFiles.Filename)'==''"></CLANG_DependencyIncDepHeaders>
+      <CLANG_InputLanguageType Condition=" '%(CppFiles.Extension)'=='.mm'">objective-c++</CLANG_InputLanguageType>
+      <CLANG_InputLanguageType Condition=" '%(CppBatchFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'=='true' ">c++</CLANG_InputLanguageType>
+      <CLANG_InputLanguageType Condition=" '%(CppBatchFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'!='true' ">c</CLANG_InputLanguageType>
+      <CLANG_LanguageStandard Condition=" '%(CppFiles.Extension)'=='.mm' Or ('%(CppFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'=='true') ">c++11</CLANG_LanguageStandard>
+      <CLANG_LanguageStandard Condition=" '%(CppBatchFiles.Extension)'=='.c' And '$(BCC_CPPCompileAlways)'!='true' ">c99</CLANG_LanguageStandard>
+    </PropertyGroup>
+
+
+    <CLANG Condition="'@(CppBatchFiles)'!='' Or '$(_KibitzTask)'!=''"
+      Compile="@(CppBatchFiles)"
+      AllWarnings="$(BCC_AllWarnings)"
+      BorlandExtensions="$(CLANG_BorlandExtensions)"
+      BorlandDiagnosticFormat="$(CLANG_BorlandDiagnosticFormat)"
+      BorlandAutoRefCount="$(CLANG_BorlandAutoRefCount)"
+      Defines="$(BCC_Defines)"
+      DisableCPPAccesControls="$(BCC_DisableCPPAccesControls)"
+      DisableFramePtrElimOpt="$(CLANG_DisableFramePtrElimOpt)"
+      DisableRttiGenerationInfo="$(BCC_DisableRttiGenerationInfo)"
+      DisableSpellChecking="$(BCC_DisableSpellChecking)"
+      DisableWarnings="$(BCC_DisableWarnings)"
+
+      EmitLLVM="$(CLANG_EmitLLVM)"
+      EmitNativeObject="$(CLANG_EmitNativeObject)"
+	  UseBorlandABI="$(CLANG_UseBorlandABI)"
+      EmitPCH="%(CppBatchFiles.PCH)"
+      EnableCPPExceptions="$(CLANG_EnableCPPExceptions)"
+      EnableExceptions="$(CLANG_EnableExceptions)"
+      ForceExecute="true"
+      GenerateConsoleApp="$(BCC_GenerateConsoleApp)"
+      GenerateDLL="$(BCC_GenerateDLL)"
+      GeneratePackage="$(BCC_GeneratePackage)"
+      GenerateMultithreaded="$(BCC_GenerateMultithreaded)"
+      GenerateUnicode="$(BCC_GenerateUnicode)"
+      GenerateWindowsApp="$(BCC_GenerateWindowsApp)"
+
+      IncludePath="$(BCC_IncludePath)"
+      IncludePCH="$(CLANG_IncludePCH)"
+      SysIncludePath="$(ProfileIncludePath)"
+      IWithSysRoot="$(BCC_IWithSysRoot)"
+      IDirAfter="$(BCC_IDirAfter)"
+      FrameworkRoot="$(BCC_FrameworkRoot)"
+      InputLanguageType="$(CLANG_InputLanguageType)"
+      InternalDefines="$(BCC_InternalDefines)"
+      KibitzTask="$(_KibitzTask)"
+      LanguageStandard="$(CLANG_LanguageStandard)"
+      MainFileName="$(CLANG_MainFileName)"
+
+      RelocationModel="$(CLANG_RelocationModel)"
+      UsePosIndCodeForObjectFile="$(CLANG_UsePosIndCodeForObjectFile)"
+      GenVerboseAssemblyOutput="$(CLANG_GenVerboseAssemblyOutput)"
+      TargetABI="$(CLANG_TargetABI)"
+      TargetCPU="$(CLANG_TargetCPU)"
+      UseFloatABI="$(UseFloatABI)"
+      NotUseCppHeaders="$(CLANG_NotUseCppHeaders)"
+      DefineDeprecatedMacros="$(CLANG_DefineDeprecatedMacros)"
+      MacMessageLenght="$(CLANG_MacMessageLenght)"
+
+      UseSjLjExcpetions="$(CLANG_UseSjLjExcpetions)"
+      UseMappableDiagnostics="$(CLANG_UseMappableDiagnostics)"
+      UseColorsDiagnostics="$(CLANG_UseColorsDiagnostics)"
+
+      EmitConstructorAliases="$(CLANG_EmitConstructorAliases)"
+
+      No__cxa_atexit_ForDestructors="$(CLANG_No__cxa_atexit_ForDestructors)"
+      NoBuiltInc="$(CLANG_NoBuiltInc)"
+      NoImplicitFloat="$(CLANG_NoImplicitFloat)"
+      NoStdSystemInc="$(CLANG_NoStdSystemInc)"
+
+      OptimizationLevel="$(BCC_OptimizationLevel)"
+      OptimizeForSize="$(BCC_OptimizeForSize)"
+      OptimizeForSpeed="$(BCC_OptimizeForSpeed)"
+      OptimizeForSizeIgnoreSpeed="$(BCC_OptimizeForSizeIgnoreSpeed)"
+      DisableOptimizations="$(BCC_DisableOptimizations)"
+
+      OutputDir="$(CLANG_OutputDir)"
+      SysRoot="$(CLANG_SysRoot)"
+
+      DependencyFile="$(CLANG_DependencyFile)"
+      DependencyFileTarget="$(CLANG_DependencyFileTarget)"
+      DependencyIncDepHeaders="$(CLANG_DependencyIncDepHeaders)"
+
+      PCHName="$(BCC_PCHName_Clang)"
+      PCHUsage="$(BCC_PCHUsage)"
+
+      PlatformTarget="$(Platform)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+
+      EnableBatchCompilation="$(CLANG_EnableBatchCompilation)"
+      RunOutOfProcess="$(RunBCCOutOfProcess)"
+      SubProcessesNumber="$(CLANG_SubProcessesNumber)"
+      RunPreprocessor="$(CLANG_RunPreprocessor)"
+
+	  FunctionSections="$(CLANG_FunctionSections)"
+	  NoThreadsafeStatics="$(CLANG_NoThreadsafeStatics)"
+      SEH="$(CLANG_SEH)"
+      SetErrorLimit="$(BCC_SetErrorLimit)"
+      ShortEnum="$(BCC_ShortEnum)"
+      LinkWithDynamicRTL="$(BCC_LinkWithDynamicRTL)"
+
+      ParallelDependencies="$(CLANG_ParallelDependencies)"
+      ShowStdOut="$(ShowStdOut)"
+
+      SourceDebuggingOn="$(BCC_SourceDebuggingOn)"
+
+      StackRealign="$(CLANG_StackRealign)"
+
+      EnableBlocksLangFeature="$(CLANG_EnableBlocksLangFeature)"
+
+      SystemIncludePath="$(BCC_SystemIncludePath)"
+
+      TargetOutputDir="$(BCC_TargetOutputDir)"
+      TargetTriple="$(CLANG_TargetTriple)"
+      Undefines="$(BCC_Undefines)"
+      UnwindTables="$(CLANG_UnwindTables)"
+
+      UserSuppliedOptions="$(BCC_UserSuppliedOptions)"
+      WarningIsError="$(BCC_WarningIsError)"
+
+      WindowsVersionDefines="$(BCC_WindowsVersionDefines)"
+    >
+        <Output
+                TaskParameter="ObjFiles"
+                ItemName="BCC_ObjFiles"/>
+    </CLANG>
+
+  </Target>
+
+
+  <Target Name="RcCompile" DependsOnTargets="$(RcCompileDependsOnTargets)">
+    <CallTarget Targets="BuildVersionResource"/>
+    <CallTarget Targets="BuildInfoPlist"/>
+    <CallTarget Targets="BuildEntitlementList"/>
+    <CallTarget Targets="BuildAndroidManifestList"/>
+    <CallTarget Targets="_RcCoreCompile"/>
+    <CallTarget Targets="BuildProjectResourceFile"/>
+  </Target>
+
+  <Target Name="_RcCoreCompile" Outputs="%(RcFiles.Identity)">
+    <BRCC32 Condition="(('@(RcFiles)'!='' And ('%(RcFiles.OptionOverrides)'!='true' And '%(RcFiles.HasBuildEvent)'!='true')) Or $(FileToCompile)!='') Or '$(_KibitzTask)'!=''"
+      Compile="%(RcFiles.Identity)"
+      ForceExecute="true"
+      PlatformTarget="$(Platform)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      CompilerToUse="$(BRCC_CompilerToUse)"
+      ResFiles="$(BRCC_OutputDir)%(RcFiles.filename)%(RcFiles.Suffix).res"
+      Language="$(BRCC_Language)"
+      ResponseFilename="$(BRCC_ResponseFilename)"
+      CodePage="$(BRCC_CodePage)"
+      UserSuppliedOptions="$(BRCC_UserSuppliedOptions)"
+      DeleteIncludePath="$(BRCC_DeleteIncludePath)"
+      Verbose="$(BRCC_Verbose)"
+      EnableMultiByte="$(BRCC_EnableMultiByte)"
+      Defines="$(BRCC_Defines)"
+      OutputDir="$(BRCC_OutputDir)"
+      IncludePath="$(BRCC_IncludePath)"
+      ShowStdOut="$(ShowStdOut)"
+    />
+    <InvokeMSBuild
+      Condition="('%(RcFiles.OptionOverrides)'=='true' Or '%(RcFiles.HasBuildEvent)'=='true') And '$(FileToCompile)'==''"
+      Project="$(MSBuildProjectFullPath)"
+      Targets="MakeOne"
+      Properties="FileToCompile=%(RcFiles.Identity);Config=$(Config);Platform=$(Platform);ForceRebuild=$(ForceRebuild)"
+    />
+  </Target>
+
+  <Target Name="PasCompile" DependsOnTargets="_PasDepCheck">
+    <CallTarget Condition="'$(ForceRebuild)'=='true' And '@(PasFiles)'!=''" Targets="_PasCompileAll"/>
+    <CallTarget Condition="'$(ForceRebuild)'!='true' And '@(PasFiles)'!=''" Targets="_PasCompile"/>
+  </Target>
+
+  <Target Name="_CreateTempDpr">
+    <CreateTempDpr
+      PasFiles="@(PasFiles)">
+      <Output
+        TaskParameter="DprFile"
+        ItemName="_PasFiles"
+      />
+    </CreateTempDpr>
+  </Target>
+
+  <Target Name="_ResolvePasFiles">
+    <CreateItem
+      Condition="'@(PasFiles)'!=''"
+      Include="@(PasFiles)">
+      <Output
+        TaskParameter="Include"
+        ItemName="_PasFiles"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_PasCompile" DependsOnTargets="_ResolvePasFiles">
+    <CallTarget Targets="_PasCoreCompile"/>
+  </Target>
+
+  <Target Name="_PasCompileAll" DependsOnTargets="_CreateTempDpr">
+    <MessageMap
+      Condition="'@(PasFiles)'!='' And '@(_PasFiles)'!=''"
+      FormatString="strUsingTempFile"
+      Arg0="@(PasFiles)"
+      Arg1="@(_PasFiles)"
+    />
+    <CallTarget Targets="_PasCoreCompile"/>
+    <Delete Files="@(_PasFiles)"/>
+    <Delete Files="@(_PasFiles->'$(DCC_ObjOutput)%(filename).$(ObjExt)')"/>
+    <Delete Files="@(_PasFiles->'$(DCC_HppOutput)%(filename).hpp')"/>
+    <Delete Files="@(_PasFiles->'$(DCC_ExeOutput)%(filename).$(ExeExt)')"/>
+    <Delete Files="@(_PasFiles->'$(DCC_ExeOutput)%(filename).$(ObjExt)')"/>
+    <Delete Files="@(_PasFiles->'$(DCC_ExeOutput)%(filename).dcu')"/>
+  </Target>
+
+  <Target Name="_PasCoreCompile" Outputs="%(_PasFiles.Identity)">
+    <DCC Condition="'@(_PasFiles)'!='' Or '$(_KibitzTask)'!=''"
+      Compile="@(_PasFiles)"
+      ToolExe="$(DCC_ToolExe)"
+      ForceExecute="$(DCC_ForceExecute)"
+      CompileForBCB="true"
+      KibitzTask="$(_KibitzTask)"
+      PlatformTarget="$(Platform)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      HppFiles="@(DCC_HppFiles)"
+      ObjFiles="@(DCC_ObjFiles)"
+      AdditionalSwitches="$(DCC_AdditionalSwitches)"
+      UnitAlias="$(UnitAliases)"
+      BuildAllUnits="$(ForceRebuild)"
+      ConsoleTarget="$(DCC_ConsoleTarget)"
+      Define="$(DCC_Define)"
+      ExeOutput="$(DCC_ExeOutput)"
+      FindError="$(DCC_FindError)"
+      MapFile="$(DCC_MapFile)"
+      StackSize="$(DCC_StackSize)"
+      ImageBase="$(DCC_ImageBase)"
+      Description="$(DCC_Description)"
+      Hints="$(DCC_Hints)"
+      Warnings="$(DCC_Warnings)"
+      IncludePath="$(DCC_IncludePath)"
+      CodePage="$(DCC_CodePage)"
+      CBuilderOutput="$(DCC_CBuilderOutput)"
+      BaseAddress="$(DCC_BaseAddress)"
+      BplOutput="$(DCC_BplOutput)"
+      DcpOutput="$(DCC_DcpOutput)"
+      UsePackage="$(DCC_UsePackage)"
+      MakeModifiedUnits="$(DCC_MakeModifiedUnits)"
+      DcuOutput="$(DCC_DcuOutput)"
+      HppOutput="$(DCC_HppOutput)"
+      ObjOutput="$(DCC_ObjOutput)"
+      BpiOutput="$(DCC_BpiOutput)"
+      NameSpace="$(NameSpace)"
+      ObjPath="$(DCC_ObjPath)"
+      OldDosFileNames="$(DCC_OldDosFileNames)"
+      Quiet="$(DCC_Quiet)"
+      ResourcePath="$(DCC_ResourcePath)"
+      UnitSearchPath="$(DCC_UnitSearchPath)"
+      DebugInfoInExe="$(DCC_DebugInfoInExe)"
+      RemoteDebug="$(DCC_RemoteDebug)"
+      DefaultNamespace="$(DCC_DefaultNamespace)"
+      OutputNeverBuildDcps="$(DCC_OutputNeverBuildDcps)"
+      OutputDependencies="$(DCC_OutputDependencies)"
+      OutputXMLDocumentation="$(DCC_OutputXMLDocumentation)"
+      OutputDRCFile="$(DCC_OutputDRCFile)"
+      NoConfig="$(DCC_NoConfig)"
+      DelaySign="$(DCC_DelaySign)"
+      KeyFile="$(DCC_KeyFile)"
+      KeyContainer="$(DCC_KeyContainer)"
+      Alignment="$(DCC_Alignment)"
+      FullBooleanEvaluations="$(DCC_FullBooleanEvaluations)"
+      AssertionsAtRuntime="$(DCC_AssertionsAtRuntime)"
+      DebugInformation="$(DCC_DebugInformation)"
+      ImportedDataReferences="$(DCC_ImportedDataReferences)"
+      LongStrings="$(DCC_LongStrings)"
+      IOChecking="$(DCC_IOChecking)"
+      WriteableConstants="$(DCC_WriteableConstants)"
+      LocalDebugSymbols="$(DCC_LocalDebugSymbols)"
+      RunTimeTypeInfo="$(DCC_RunTimeTypeInfo)"
+      Optimize="$(DCC_Optimize)"
+      OpenStringParams="$(DCC_OpenStringParams)"
+      IntegerOverflowCheck="$(DCC_IntegerOverflowCheck)"
+      RangeChecking="$(DCC_RangeChecking)"
+      TypedAtParameter="$(DCC_TypedAtParameter)"
+      PentiumSafeDivide="$(DCC_PentiumSafeDivide)"
+      StrictVarStrings="$(DCC_StrictVarStrings)"
+      GenerateStackFrames="$(DCC_GenerateStackFrames)"
+      ExtendedSyntax="$(DCC_ExtendedSyntax)"
+      SymbolReferenceInfo="$(DCC_SymbolReferenceInfo)"
+      MinimumEnumSize="$(DCC_MinimumEnumSize)"
+      SYMBOL_DEPRECATED="$(DCC_SYMBOL_DEPRECATED)"
+      SYMBOL_LIBRARY="$(DCC_SYMBOL_LIBRARY)"
+      SYMBOL_PLATFORM="$(DCC_SYMBOL_PLATFORM)"
+      SYMBOL_EXPERIMENTAL="$(DCC_SYMBOL_EXPERIMENTAL)"
+      UNIT_LIBRARY="$(DCC_UNIT_LIBRARY)"
+      UNIT_PLATFORM="$(DCC_UNIT_PLATFORM)"
+      UNIT_DEPRECATED="$(DCC_UNIT_DEPRECATED)"
+      UNIT_EXPERIMENTAL="$(DCC_UNIT_EXPERIMENTAL)"
+      HRESULT_COMPAT="$(DCC_HRESULT_COMPAT)"
+      HIDING_MEMBER="$(DCC_HIDING_MEMBER)"
+      HIDDEN_VIRTUAL="$(DCC_HIDDEN_VIRTUAL)"
+      GARBAGE="$(DCC_GARBAGE)"
+      BOUNDS_ERROR="$(DCC_BOUNDS_ERROR)"
+      ZERO_NIL_COMPAT="$(DCC_ZERO_NIL_COMPAT)"
+      STRING_CONST_TRUNCED="$(DCC_STRING_CONST_TRUNCED)"
+      FOR_LOOP_VAR_VARPAR="$(DCC_FOR_LOOP_VAR_VARPAR)"
+      TYPED_CONST_VARPAR="$(DCC_TYPED_CONST_VARPAR)"
+      ASG_TO_TYPED_CONST="$(DCC_ASG_TO_TYPED_CONST)"
+      CASE_LABEL_RANGE="$(DCC_CASE_LABEL_RANGE)"
+      FOR_VARIABLE="$(DCC_FOR_VARIABLE)"
+      CONSTRUCTING_ABSTRACT="$(DCC_CONSTRUCTING_ABSTRACT)"
+      COMPARISON_FALSE="$(DCC_COMPARISON_FALSE)"
+      COMPARISON_TRUE="$(DCC_COMPARISON_TRUE)"
+      COMPARING_SIGNED_UNSIGNED="$(DCC_COMPARING_SIGNED_UNSIGNED)"
+      COMBINING_SIGNED_UNSIGNED="$(DCC_COMBINING_SIGNED_UNSIGNED)"
+      UNSUPPORTED_CONSTRUCT="$(DCC_UNSUPPORTED_CONSTRUCT)"
+      FILE_OPEN="$(DCC_FILE_OPEN)"
+      FILE_OPEN_UNITSRC="$(DCC_FILE_OPEN_UNITSRC)"
+      BAD_GLOBAL_SYMBOL="$(DCC_BAD_GLOBAL_SYMBOL)"
+      DUPLICATE_CTOR_DTOR="$(DCC_DUPLICATE_CTOR_DTOR)"
+      INVALID_DIRECTIVE="$(DCC_INVALID_DIRECTIVE)"
+      PACKAGE_NO_LINK="$(DCC_PACKAGE_NO_LINK)"
+      PACKAGED_THREADVAR="$(DCC_PACKAGED_THREADVAR)"
+      IMPLICIT_IMPORT="$(DCC_IMPLICIT_IMPORT)"
+      HPPEMIT_IGNORED="$(DCC_HPPEMIT_IGNORED)"
+      NO_RETVAL="$(DCC_NO_RETVAL)"
+      USE_BEFORE_DEF="$(DCC_USE_BEFORE_DEF)"
+      FOR_LOOP_VAR_UNDEF="$(DCC_FOR_LOOP_VAR_UNDEF)"
+      UNIT_NAME_MISMATCH="$(DCC_UNIT_NAME_MISMATCH)"
+      NO_CFG_FILE_FOUND="$(DCC_NO_CFG_FILE_FOUND)"
+      IMPLICIT_VARIANTS="$(DCC_IMPLICIT_VARIANTS)"
+      UNICODE_TO_LOCALE="$(DCC_UNICODE_TO_LOCALE)"
+      LOCALE_TO_UNICODE="$(DCC_LOCALE_TO_UNICODE)"
+      IMAGEBASE_MULTIPLE="$(DCC_IMAGEBASE_MULTIPLE)"
+      SUSPICIOUS_TYPECAST="$(DCC_SUSPICIOUS_TYPECAST)"
+      PRIVATE_PROPACCESSOR="$(DCC_PRIVATE_PROPACCESSOR)"
+      UNSAFE_TYPE="$(DCC_UNSAFE_TYPE)"
+      UNSAFE_CODE="$(DCC_UNSAFE_CODE)"
+      UNSAFE_CAST="$(DCC_UNSAFE_CAST)"
+      OPTION_TRUNCATED="$(DCC_OPTION_TRUNCATED)"
+      WIDECHAR_REDUCED="$(DCC_WIDECHAR_REDUCED)"
+      DUPLICATES_IGNORED="$(DCC_DUPLICATES_IGNORED)"
+      UNIT_INIT_SEQ="$(DCC_UNIT_INIT_SEQ)"
+      LOCAL_PINVOKE="$(DCC_LOCAL_PINVOKE)"
+      MESSAGE_DIRECTIVE="$(DCC_MESSAGE_DIRECTIVE)"
+      TYPEINFO_IMPLICITLY_ADDED="$(DCC_TYPEINFO_IMPLICITLY_ADDED)"
+      XML_WHITESPACE_NOT_ALLOWED="$(DCC_XML_WHITESPACE_NOT_ALLOWED)"
+      XML_UNKNOWN_ENTITY="$(DCC_XML_UNKNOWN_ENTITY)"
+      XML_INVALID_NAME_START="$(DCC_XML_INVALID_NAME_START)"
+      XML_INVALID_NAME="$(DCC_XML_INVALID_NAME)"
+      XML_EXPECTED_CHARACTER="$(DCC_XML_EXPECTED_CHARACTER)"
+      XML_CREF_NO_RESOLVE="$(DCC_XML_CREF_NO_RESOLVE)"
+      XML_NO_PARM="$(DCC_XML_NO_PARM)"
+      XML_NO_MATCHING_PARM="$(DCC_XML_NO_MATCHING_PARM)"
+      ShowStdOut="$(ShowStdOut)"
+      ClearUnitCache="true"
+
+      SysLibRoot="$(DCC_SysLibRoot)"
+      FrameworkPath="$(DCC_FrameworkPath)"
+      iOSMinimumVersion="$(DCC_iOSMinimumVersion)"
+      LinkerOptions="$(DCC_LinkerOptions)"
+      LibraryPath="$(DCC_LibraryPath)"
+      LinkerExecutable="$(DCC_LinkerExecutable)"
+    />
+  </Target>
+
+  <!-- ResolveReferences is necessary to add runtime packages to the kibitz command line. -->
+  <Target Name="_PasKibitzCompile" DependsOnTargets="_PasCoreCompile">
+  </Target>
+
+  <Target Name="AsmCompile" DependsOnTargets="_AsmDepCheck;">
+    <CallTarget Targets="_AsmCoreCompile"/>
+  </Target>
+
+  <Target Name="_AsmCoreCompile" Outputs="%(AsmFiles.Identity)">
+    <TASM32 Condition="('@(AsmFiles)'!='' And ('%(AsmFiles.OptionOverrides)'!='true' And '%(AsmFiles.HasBuildEvent)'!='true')) Or '$(FileToCompile)'!=''"
+      Compile="%(AsmFiles.Identity)"
+      ForceExecute="true"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      PlatformTarget="$(Platform)"
+      ObjFiles="$(TASM_OutputDir)%(AsmFiles.Filename)%(AsmFiles.Suffix).$(ObjExt)"
+      ListingFile="@(TASM_ListingFile)"
+      CrossRefFile="@(TASM_CrossRefFile)"
+      Debugging="$(TASM_Debugging)"
+      Overlay="$(TASM_Overlay)"
+      SegmentOrdering="$(TASM_SegmentOrdering)"
+      FloatingPoint="$(TASM_FloatingPoint)"
+      CaseSensitivity="$(TASM_CaseSensitivity)"
+      Defines="$(TASM_Defines)"
+      IncludePath="$(TASM_IncludePath)"
+      Directives="$(TASM_Directives)"
+      OutputDir="$(TASM_OutputDir)"
+      HashTableCapacity="$(TASM_HashTableCapacity)"
+      MaxSymbolLength="$(TASM_MaxSymbolLength)"
+      Passes="$(TASM_Passes)"
+      ImpureCodeCheck="$(TASM_ImpureCodeCheck)"
+      SuppressObjRecords="$(TASM_SuppressObjRecords)"
+      SuppressMessages="$(TASM_SuppressMessages)"
+      VersionId="$(TASM_VersionId)"
+      DisplaySourceLines="$(TASM_DisplaySourceLines)"
+      AdditionalSwitches="$(TASM_AdditionalSwitches)"
+      AllWarnings="$(TASM_AllWarnings)"
+      DisableWarnings="$(TASM_DisableWarnings)"
+      SelectedWarnings="$(TASM_SelectedWarnings)"
+      waln="$(TASM_waln)"
+      wass="$(TASM_wass)"
+      wbrk="$(TASM_wbrk)"
+      wgtp="$(TASM_wgtp)"
+      wicg="$(TASM_wicg)"
+      wint="$(TASM_wint)"
+      wlco="$(TASM_wlco)"
+      wmcp="$(TASM_wmcp)"
+      wopi="$(TASM_wopi)"
+      wopp="$(TASM_wopp)"
+      wops="$(TASM_wops)"
+      wovf="$(TASM_wovf)"
+      wpdc="$(TASM_wpdc)"
+      wpqk="$(TASM_wpqk)"
+      wpro="$(TASM_wpro)"
+      wres="$(TASM_wres)"
+      wtpi="$(TASM_wtpi)"
+      wuni="$(TASM_wuni)"
+      GenerateCrossReferences="$(TASM_GenerateCrossReferences)"
+      GenerateCrossRefFile="$(TASM_GenerateCrossRefFile)"
+      GenerateExpandedListingFile="$(TASM_GenerateExpandedListingFile)"
+      GenerateListingFile="$(TASM_GenerateListingFile)"
+      SuppressSymbolsInListing="$(TASM_SuppressSymbolsInListing)"
+      FalseCondsInListing="$(TASM_FalseCondsInListing)"
+      CommandString="$(TASM_CommandString)"
+      ShowStdOut="$(ShowStdOut)"
+      >
+        <Output
+                TaskParameter="ObjFiles"
+                ItemName="TASM_ObjFiles"/>
+        <Output
+                TaskParameter="ListingFile"
+                ItemName="TASM_ListingFile"/>
+        <Output
+                TaskParameter="CrossRefFile"
+                ItemName="TASM_CrossRefFile"/>
+    </TASM32>
+    <InvokeMSBuild
+      Condition="('%(AsmFiles.OptionOverrides)'=='true' Or '%(AsmFiles.HasBuildEvent)'=='true') And '$(FileToCompile)'==''"
+      Project="$(MSBuildProjectFullPath)"
+      Targets="MakeOne"
+      Properties="FileToCompile=%(AsmFiles.Identity);Config=$(Config);Platform=$(Platform);ForceRebuild=$(ForceRebuild)"
+    />
+  </Target>
+
+  <Target Name="_CppResolveBatches" DependsOnTargets="_CppDepCheck;_PCHDepCheck">
+    <CreateItem
+      Condition="'%(CppFiles.OptionOverrides)'!='true'"
+      Include="%(CppFiles.Identity)">
+      <Output
+        TaskParameter="Include"
+        ItemName="CppBatchFiles"
+      />
+    </CreateItem>
+    <CreateItem
+      Condition="'%(CppFiles.OptionOverrides)'=='true'"
+      Include="%(CppFiles.Identity)">
+      <Output
+        TaskParameter="Include"
+        ItemName="CppBatchOverrideFiles"
+      />
+    </CreateItem>
+  </Target>
+
+  <Target Name="_CppBatchOverrideCompile" Outputs="%(CppBatchOverrideFiles.Identity)">
+    <InvokeMSBuild
+      Condition="@(CppBatchOverrideFiles)!=''"
+      Project="$(MSBuildProjectFullPath)"
+      Targets="MakeOne"
+      Properties="FileToCompile=%(CppBatchOverrideFiles.Identity);Config=$(Config);Platform=$(Platform);ForceRebuild=$(ForceRebuild)"
+    />
+  </Target>
+
+  <Target Name="CppBatchCompile" DependsOnTargets="_CppResolveBatches">
+    <CallTarget
+      Condition="@(CppBatchOverrideFiles)!=''"
+      Targets="_CppBatchOverrideCompile"
+    />
+    <CallTarget
+      Condition="@(CppBatchFiles)!='' And !$(USING_CLANG)"
+      Targets="_CppBatchCompile"
+    />
+    <CallTarget
+      Condition="@(CppBatchFiles)!='' And $(USING_CLANG)"
+      Targets="_CLANGCppBatchCompile"
+    />
+  </Target>
+
+  <Target Name="_CppBatchCompile">
+    <BCC32 Condition="'@(CppBatchFiles)'!='' Or '$(_KibitzTask)'!=''"
+      Compile="@(CppBatchFiles)"
+      ForceExecute="true"
+      KibitzTask="$(_KibitzTask)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      PlatformTarget="$(Platform)"
+      PreventPCHInjection="%(CppBatchFiles.BCC_PreventPCHInjection)"
+      ShowStdOut="$(ShowStdOut)"
+
+      Defines="$(BCC_Defines)"
+      InternalDefines="$(BCC_InternalDefines)"
+      Undefines="$(BCC_Undefines)"
+      TargetOutputDir="$(BCC_TargetOutputDir)"
+      OutputDir="$(BCC_OutputDir)"
+      SysRoot="$(Profile_SysRoot)"
+      IncludePath="$(BCC_IncludePath)"
+      SysIncludePath="$(ProfileIncludePath)"
+      FrameworkRoot="$(ProfileFrameworkPath)"
+      WindowsVersionDefines="$(BCC_WindowsVersionDefines)"
+      DebugLineNumbers="$(BCC_DebugLineNumbers)"
+      SourceDebuggingOn="$(BCC_SourceDebuggingOn)"
+      InlineFunctionExpansion="$(BCC_InlineFunctionExpansion)"
+      CodeView4DebugInfo="$(BCC_CodeView4DebugInfo)"
+      AllCodeguardOptions="$(BCC_AllCodeguardOptions)"
+      MonitorInlinePtrAccess="$(BCC_MonitorInlinePtrAccess)"
+      MonitorGlobalAndStackData="$(BCC_MonitorGlobalAndStackData)"
+      MonitorThis="$(BCC_MonitorThis)"
+      CodeguardDebugLevel="$(BCC_CodeguardDebugLevel)"
+      SuppressBanner="$(BCC_SuppressBanner)"
+      ExtendedErrorInfo="$(BCC_ExtendedErrorInfo)"
+      IntegerSizedEnums="$(BCC_IntegerSizedEnums)"
+      IntegerTypeEnums="$(BCC_IntegerTypeEnums)"
+      StackFrames="$(BCC_StackFrames)"
+      CPPCompileAlways="$(BCC_CPPCompileAlways)"
+      InstructionSet="$(BCC_InstructionSet)"
+      DataAlignment="$(BCC_DataAlignment)"
+      CallingConvention="$(BCC_CallingConvention)"
+      UseRegisterVariables="$(BCC_UseRegisterVariables)"
+      LanguageCompliance="$(BCC_LanguageCompliance)"
+      EnableBatchCompilation="$(BCC_EnableBatchCompilation)"
+      StopBatchAfterWarnings="$(BCC_StopBatchAfterWarnings)"
+      StopBatchAfterErrors="$(BCC_StopBatchAfterErrors)"
+      StopBatchAfterFirstError="$(BCC_StopBatchAfterFirstError)"
+      NoLink="$(BCC_NoLink)"
+      AutoDepCheck="$(BCC_AutoDepCheck)"
+      VirtualTables="$(BCC_VirtualTables)"
+      TemplateGeneration="$(BCC_TemplateGeneration)"
+      MemberPtrKind="$(BCC_MemberPtrKind)"
+      HonorMemPtrPrecision="$(BCC_HonorMemPtrPrecision)"
+      EnableRTTI="$(BCC_EnableRTTI)"
+      EnableExceptionHandling="$(BCC_EnableExceptionHandling)"
+      DestructorCleanup="$(BCC_DestructorCleanup)"
+      GlobalDestructorCount="$(BCC_GlobalDestructorCount)"
+      NoDllOrMTDestructorCleanup="$(BCC_NoDllOrMTDestructorCleanup)"
+      FastExceptionPrologs="$(BCC_FastExceptionPrologs)"
+      ExceptionLocationInfo="$(BCC_ExceptionLocationInfo)"
+      SlowExceptionEpilogues="$(BCC_SlowExceptionEpilogues)"
+      HideExceptionVars="$(BCC_HideExceptionVars)"
+      MergeDuplicateStrings="$(BCC_MergeDuplicateStrings)"
+      StringsInReadOnlyDataSeg="$(BCC_StringsInReadOnlyDataSeg)"
+      StringsInWriteableDataSeg="$(BCC_StringsInWriteableDataSeg)"
+      FastFloatingPoint="$(BCC_FastFloatingPoint)"
+      CorrectFDIVFlaw="$(BCC_CorrectFDIVFlaw)"
+      QuietFloatingPoint="$(BCC_QuietFloatingPoint)"
+      NestedComments="$(BCC_NestedComments)"
+      MaxIdentifierLength="$(BCC_MaxIdentifierLength)"
+      AsmToObj="$(BCC_AsmToObj)"
+      Assembler="$(BCC_Assembler)"
+      AssemblerOptions="$(BCC_AssemblerOptions)"
+      CompileToAssembly="$(BCC_CompileToAssembly)"
+      CompileToAssemblyOutputFilename="$(BCC_CompileToAssemblyOutputFilename)"
+      UserSuppliedOptions="$(BCC_UserSuppliedOptions)"
+      EnableCodePaging="$(BCC_EnableCodePaging)"
+      ExecutionCharacterSet="$(BCC_ExecutionCharacterSet)"
+      DefaultCharUnsigned="$(BCC_DefaultCharUnsigned)"
+      GenerateConsoleApp="$(BCC_GenerateConsoleApp)"
+      GenerateDLL="$(BCC_GenerateDLL)"
+      GenerateMultithreaded="$(BCC_GenerateMultithreaded)"
+      GenerateUnicode="$(BCC_GenerateUnicode)"
+      GenerateWindowsApp="$(BCC_GenerateWindowsApp)"
+      GlobalFuncsInOwnSegment="$(BCC_GlobalFuncsInOwnSegment)"
+      DontMangleCCInSymbolNames="$(BCC_DontMangleCCInSymbolNames)"
+      MSHeaderSearchAlgorithm="$(BCC_MSHeaderSearchAlgorithm)"
+      BackwardCompatibility="$(BCC_BackwardCompatibility)"
+      AllowNonConstCalls="$(BCC_AllowNonConstCalls)"
+      OldOverloadRules="$(BCC_OldOverloadRules)"
+      NonConstRefBinding="$(BCC_NonConstRefBinding)"
+      StringLiteralsNonConst="$(BCC_StringLiteralsNonConst)"
+      OldUsingRules="$(BCC_OldUsingRules)"
+      OldRefTypes="$(BCC_OldRefTypes)"
+      OldTernaryOperators="$(BCC_OldTernaryOperators)"
+      OldForStatementScoping="$(BCC_OldForStatementScoping)"
+      DisableDigraphScanner="$(BCC_DisableDigraphScanner)"
+      DOSHeaderSearchAlgorithm="$(BCC_DOSHeaderSearchAlgorithm)"
+      NewOperatorNames="$(BCC_NewOperatorNames)"
+      AllCompatibilityFlags="$(BCC_AllCompatibilityFlags)"
+      ReverseOrderForMultiCharConst="$(BCC_ReverseOrderForMultiCharConst)"
+      NativeCodeForMultiByte="$(BCC_NativeCodeForMultiByte)"
+      VCCompatibility="$(BCC_VCCompatibility)"
+      OldBorlandClassLayout="$(BCC_OldBorlandClassLayout)"
+      OldStyleVirdef="$(BCC_OldStyleVirdef)"
+      OldStyleClassArgs="$(BCC_OldStyleClassArgs)"
+      OldStyleTemplateSpec="$(BCC_OldStyleTemplateSpec)"
+      ExplicitSpecializationAsMemberFunc="$(BCC_ExplicitSpecializationAsMemberFunc)"
+      ConstructorDisplacements="$(BCC_ConstructorDisplacements)"
+      PushThisFirst="$(BCC_PushThisFirst)"
+      VTablePtrAtFront="$(BCC_VTablePtrAtFront)"
+      SlowVirtualBasePtrs="$(BCC_SlowVirtualBasePtrs)"
+      ZeroLengthEmptyMemberFuncs="$(BCC_ZeroLengthEmptyMemberFuncs)"
+      ZeroLengthEmptyBaseClass="$(BCC_ZeroLengthEmptyBaseClass)"
+      PCHName="$(BCC_PCHName)"
+      PCHInject="$(BCC_PCHInject)"
+      PCHUsage="$(BCC_PCHUsage)"
+      PCHWithExternalTypeFiles="$(BCC_PCHWithExternalTypeFiles)"
+      IncludeContentsOfHeaders="$(BCC_IncludeContentsOfHeaders)"
+      PCHCache="$(BCC_PCHCache)"
+      StopPCHAfter="$(BCC_StopPCHAfter)"
+      ReplaceHeaderName="$(BCC_ReplaceHeaderName)"
+      SmartPCHCache="$(BCC_SmartPCHCache)"
+      SaveMem="$(BCC_SaveMem)"
+      UTF8Output="$(BCC_UTF8Output)"
+      NoAutodependency="$(BCC_NoAutodependency)"
+      IgnoreSystemHeaders="$(BCC_IgnoreSystemHeaders)"
+      UnderscoreSymbolNames="$(BCC_UnderscoreSymbolNames)"
+      DontUnderscoreExportedSymbolNames="$(BCC_DontUnderscoreExportedSymbolNames)"
+      OutputBrowserInfo="$(BCC_OutputBrowserInfo)"
+      WarningIsError="$(BCC_WarningIsError)"
+      AllWarnings="$(BCC_AllWarnings)"
+      DisableWarnings="$(BCC_DisableWarnings)"
+      SelectedWarnings="$(BCC_SelectedWarnings)"
+      wamb="$(BCC_wamb)"
+      wamp="$(BCC_wamp)"
+      wasc="$(BCC_wasc)"
+      wasm="$(BCC_wasm)"
+      waus="$(BCC_waus)"
+      wbbf="$(BCC_wbbf)"
+      wbei="$(BCC_wbei)"
+      wbig="$(BCC_wbig)"
+      wccc="$(BCC_wccc)"
+      wcln="$(BCC_wcln)"
+      wcom="$(BCC_wcom)"
+      wcpt="$(BCC_wcpt)"
+      wcsu="$(BCC_wcsu)"
+      wdef="$(BCC_wdef)"
+      wdig="$(BCC_wdig)"
+      wdpu="$(BCC_wdpu)"
+      wdsz="$(BCC_wdsz)"
+      wdup="$(BCC_wdup)"
+      weas="$(BCC_weas)"
+      weff="$(BCC_weff)"
+      wext="$(BCC_wext)"
+      whch="$(BCC_whch)"
+      whid="$(BCC_whid)"
+      wias="$(BCC_wias)"
+      wibc="$(BCC_wibc)"
+      will="$(BCC_will)"
+      winl="$(BCC_winl)"
+      wlin="$(BCC_wlin)"
+      wlvc="$(BCC_wlvc)"
+      wmpc="$(BCC_wmpc)"
+      wmpd="$(BCC_wmpd)"
+      wmsg="$(BCC_wmsg)"
+      wnak="$(BCC_wnak)"
+      wncf="$(BCC_wncf)"
+      wnci="$(BCC_wnci)"
+      wncl="$(BCC_wncl)"
+      wnfd="$(BCC_wnfd)"
+      wngu="$(BCC_wngu)"
+      wnin="$(BCC_wnin)"
+      wnma="$(BCC_wnma)"
+      wnmu="$(BCC_wnmu)"
+      wnod="$(BCC_wnod)"
+      wnop="$(BCC_wnop)"
+      wnsf="$(BCC_wnsf)"
+      wnst="$(BCC_wnst)"
+      wntd="$(BCC_wntd)"
+      wnto="$(BCC_wnto)"
+      wnvf="$(BCC_wnvf)"
+      wobi="$(BCC_wobi)"
+      wobs="$(BCC_wobs)"
+      wofp="$(BCC_wofp)"
+      wosh="$(BCC_wosh)"
+      wovf="$(BCC_wovf)"
+      wpar="$(BCC_wpar)"
+      wpch="$(BCC_wpch)"
+      wpck="$(BCC_wpck)"
+      wpia="$(BCC_wpia)"
+      wpin="$(BCC_wpin)"
+      wpow="$(BCC_wpow)"
+      wpre="$(BCC_wpre)"
+      wpro="$(BCC_wpro)"
+      wrch="$(BCC_wrch)"
+      wret="$(BCC_wret)"
+      wrng="$(BCC_wrng)"
+      wrpt="$(BCC_wrpt)"
+      wrvl="$(BCC_wrvl)"
+      wsig="$(BCC_wsig)"
+      wspa="$(BCC_wspa)"
+      wstu="$(BCC_wstu)"
+      wstv="$(BCC_wstv)"
+      wsus="$(BCC_wsus)"
+      wtai="$(BCC_wtai)"
+      wtes="$(BCC_wtes)"
+      wthr="$(BCC_wthr)"
+      wucp="$(BCC_wucp)"
+      wuse="$(BCC_wuse)"
+      wvoi="$(BCC_wvoi)"
+      wzdi="$(BCC_wzdi)"
+      wnpp="$(BCC_wnpp)"
+      wprc="$(BCC_wprc)"
+      wifr="$(BCC_wifr)"
+      wali="$(BCC_wali)"
+      wstl="$(BCC_wstl)"
+      wcod="$(BCC_wcod)"
+      wpcm="$(BCC_wpcm)"
+      wmes="$(BCC_wmes)"
+      wmcs="$(BCC_wmcs)"
+      wonr="$(BCC_wonr)"
+      wmcc="$(BCC_wmcc)"
+      wpsb="$(BCC_wpsb)"
+      watr="$(BCC_watr)"
+      wexc="$(BCC_wexc)"
+      wimp="$(BCC_wimp)"
+      wptl="$(BCC_wptl)"
+      wmls="$(BCC_wmls)"
+      wmnc="$(BCC_wmnc)"
+      wntn="$(BCC_wntn)"
+      wcni="$(BCC_wcni)"
+      wpad="$(BCC_wpad)"
+      wdat="$(BCC_wdat)"
+      wdpr="$(BCC_wdpr)"
+      wdex="$(BCC_wdex)"
+      wiex="$(BCC_wiex)"
+      wucn="$(BCC_wucn)"
+      winc="$(BCC_winc)"
+      wrlo="$(BCC_wrlo)"
+      wiip="$(BCC_wiip)"
+      wmal="$(BCC_wmal)"
+      wbex="$(BCC_wbex)"
+      wiac="$(BCC_wiac)"
+      wmtx="$(BCC_wmtx)"
+      wpnf="$(BCC_wpnf)"
+      wnrm="$(BCC_wnrm)"
+      weoi="$(BCC_weoi)"
+      wbcx="$(BCC_wbcx)"
+      wdlx="$(BCC_wdlx)"
+      wdim="$(BCC_wdim)"
+      wdgu="$(BCC_wdgu)"
+      wdiu="$(BCC_wdiu)"
+      wdin="$(BCC_wdin)"
+      wind="$(BCC_wind)"
+      wsmx="$(BCC_wsmx)"
+      wadt="$(BCC_wadt)"
+      wpun="$(BCC_wpun)"
+      witl="$(BCC_witl)"
+      wtlb="$(BCC_wtlb)"
+      wpns="$(BCC_wpns)"
+      OptimizeForSize="$(BCC_OptimizeForSize)"
+      DisableOptimizations="$(BCC_DisableOptimizations)"
+      OptimizeForSpeed="$(BCC_OptimizeForSpeed)"
+      SelectedOptimizations="$(BCC_SelectedOptimizations)"
+      OptimizeJumps="$(BCC_OptimizeJumps)"
+      PentiumInstructionScheduling="$(BCC_PentiumInstructionScheduling)"
+      EliminateDeadStore="$(BCC_EliminateDeadStore)"
+      EliminateDuplicateExpressions="$(BCC_EliminateDuplicateExpressions)"
+      ExpandIntrinsics="$(BCC_ExpandIntrinsics)"
+      LoopInductionReduction="$(BCC_LoopInductionReduction)"
+      OptimizeVariables="$(BCC_OptimizeVariables)"
+
+      EnableCPPExceptions="$(BCC_EnableCPPExceptions)"
+      SetErrorLimit="$(BCC_SetErrorLimit)"
+      DisableCPPAccesControls="$(BCC_DisableCPPAccesControls)"
+      DisableRttiGenerationInfo="$(BCC_DisableRttiGenerationInfo)"
+      PredefineMacro="$(BCC_PredefineMacro)"
+    >
+        <Output
+                TaskParameter="ObjFiles"
+                ItemName="BCC_ObjFiles"/>
+        <Output
+                TaskParameter="PrecompiledHeaderFile"
+                ItemName="BCC_PrecompiledHeaderFile"/>
+    </BCC32>
+  </Target>
+
+  <Target Name="Preprocess" DependsOnTargets="$(PreprocessDependsOnTargets)">
+    <CPP32 Condition="'@(InputFile)'!=''"
+      Preprocess="@(InputFile)"
+      ForceExecute="true"
+      KibitzTask="$(_KibitzTask)"
+      PlatformTarget="$(Platform)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      OutputFilename="$(PreprocessOutputFilename)"
+      ShowStdOut="$(ShowStdOut)"
+
+      Defines="$(BCC_Defines)"
+      InternalDefines="$(BCC_InternalDefines)"
+      Undefines="$(BCC_Undefines)"
+      TargetOutputDir="$(BCC_TargetOutputDir)"
+      OutputDir="$(BCC_OutputDir)"
+      SysRoot="$(Profile_SysRoot)"
+      IncludePath="$(BCC_IncludePath)"
+      SysIncludePath="$(ProfileIncludePath)"
+      FrameworkRoot="$(ProfileFrameworkPath)"
+      WindowsVersionDefines="$(BCC_WindowsVersionDefines)"
+      DebugLineNumbers="$(BCC_DebugLineNumbers)"
+      SourceDebuggingOn="$(BCC_SourceDebuggingOn)"
+      InlineFunctionExpansion="$(BCC_InlineFunctionExpansion)"
+      CodeView4DebugInfo="$(BCC_CodeView4DebugInfo)"
+      AllCodeguardOptions="$(BCC_AllCodeguardOptions)"
+      MonitorInlinePtrAccess="$(BCC_MonitorInlinePtrAccess)"
+      MonitorGlobalAndStackData="$(BCC_MonitorGlobalAndStackData)"
+      MonitorThis="$(BCC_MonitorThis)"
+      CodeguardDebugLevel="$(BCC_CodeguardDebugLevel)"
+      SuppressBanner="$(BCC_SuppressBanner)"
+      ExtendedErrorInfo="$(BCC_ExtendedErrorInfo)"
+      IntegerSizedEnums="$(BCC_IntegerSizedEnums)"
+      IntegerTypeEnums="$(BCC_IntegerTypeEnums)"
+      StackFrames="$(BCC_StackFrames)"
+      CPPCompileAlways="$(BCC_CPPCompileAlways)"
+      InstructionSet="$(BCC_InstructionSet)"
+      DataAlignment="$(BCC_DataAlignment)"
+      CallingConvention="$(BCC_CallingConvention)"
+      UseRegisterVariables="$(BCC_UseRegisterVariables)"
+      LanguageCompliance="$(BCC_LanguageCompliance)"
+      EnableBatchCompilation="$(BCC_EnableBatchCompilation)"
+      StopBatchAfterWarnings="$(BCC_StopBatchAfterWarnings)"
+      StopBatchAfterErrors="$(BCC_StopBatchAfterErrors)"
+      StopBatchAfterFirstError="$(BCC_StopBatchAfterFirstError)"
+      NoLink="$(BCC_NoLink)"
+      AutoDepCheck="$(BCC_AutoDepCheck)"
+      VirtualTables="$(BCC_VirtualTables)"
+      TemplateGeneration="$(BCC_TemplateGeneration)"
+      MemberPtrKind="$(BCC_MemberPtrKind)"
+      HonorMemPtrPrecision="$(BCC_HonorMemPtrPrecision)"
+      EnableRTTI="$(BCC_EnableRTTI)"
+      EnableExceptionHandling="$(BCC_EnableExceptionHandling)"
+      DestructorCleanup="$(BCC_DestructorCleanup)"
+      GlobalDestructorCount="$(BCC_GlobalDestructorCount)"
+      NoDllOrMTDestructorCleanup="$(BCC_NoDllOrMTDestructorCleanup)"
+      FastExceptionPrologs="$(BCC_FastExceptionPrologs)"
+      ExceptionLocationInfo="$(BCC_ExceptionLocationInfo)"
+      SlowExceptionEpilogues="$(BCC_SlowExceptionEpilogues)"
+      HideExceptionVars="$(BCC_HideExceptionVars)"
+      MergeDuplicateStrings="$(BCC_MergeDuplicateStrings)"
+      StringsInReadOnlyDataSeg="$(BCC_StringsInReadOnlyDataSeg)"
+      StringsInWriteableDataSeg="$(BCC_StringsInWriteableDataSeg)"
+      FastFloatingPoint="$(BCC_FastFloatingPoint)"
+      CorrectFDIVFlaw="$(BCC_CorrectFDIVFlaw)"
+      QuietFloatingPoint="$(BCC_QuietFloatingPoint)"
+      NestedComments="$(BCC_NestedComments)"
+      MaxIdentifierLength="$(BCC_MaxIdentifierLength)"
+      AsmToObj="$(BCC_AsmToObj)"
+      Assembler="$(BCC_Assembler)"
+      AssemblerOptions="$(BCC_AssemblerOptions)"
+      CompileToAssembly="$(BCC_CompileToAssembly)"
+      CompileToAssemblyOutputFilename="$(BCC_CompileToAssemblyOutputFilename)"
+      UserSuppliedOptions="$(BCC_UserSuppliedOptions)"
+      EnableCodePaging="$(BCC_EnableCodePaging)"
+      ExecutionCharacterSet="$(BCC_ExecutionCharacterSet)"
+      DefaultCharUnsigned="$(BCC_DefaultCharUnsigned)"
+      GenerateConsoleApp="$(BCC_GenerateConsoleApp)"
+      GenerateDLL="$(BCC_GenerateDLL)"
+      GenerateMultithreaded="$(BCC_GenerateMultithreaded)"
+      GenerateUnicode="$(BCC_GenerateUnicode)"
+      GenerateWindowsApp="$(BCC_GenerateWindowsApp)"
+      GlobalFuncsInOwnSegment="$(BCC_GlobalFuncsInOwnSegment)"
+      DontMangleCCInSymbolNames="$(BCC_DontMangleCCInSymbolNames)"
+      MSHeaderSearchAlgorithm="$(BCC_MSHeaderSearchAlgorithm)"
+      BackwardCompatibility="$(BCC_BackwardCompatibility)"
+      AllowNonConstCalls="$(BCC_AllowNonConstCalls)"
+      OldOverloadRules="$(BCC_OldOverloadRules)"
+      NonConstRefBinding="$(BCC_NonConstRefBinding)"
+      StringLiteralsNonConst="$(BCC_StringLiteralsNonConst)"
+      OldUsingRules="$(BCC_OldUsingRules)"
+      OldRefTypes="$(BCC_OldRefTypes)"
+      OldTernaryOperators="$(BCC_OldTernaryOperators)"
+      OldForStatementScoping="$(BCC_OldForStatementScoping)"
+      DisableDigraphScanner="$(BCC_DisableDigraphScanner)"
+      DOSHeaderSearchAlgorithm="$(BCC_DOSHeaderSearchAlgorithm)"
+      NewOperatorNames="$(BCC_NewOperatorNames)"
+      AllCompatibilityFlags="$(BCC_AllCompatibilityFlags)"
+      ReverseOrderForMultiCharConst="$(BCC_ReverseOrderForMultiCharConst)"
+      NativeCodeForMultiByte="$(BCC_NativeCodeForMultiByte)"
+      VCCompatibility="$(BCC_VCCompatibility)"
+      OldBorlandClassLayout="$(BCC_OldBorlandClassLayout)"
+      OldStyleVirdef="$(BCC_OldStyleVirdef)"
+      OldStyleClassArgs="$(BCC_OldStyleClassArgs)"
+      OldStyleTemplateSpec="$(BCC_OldStyleTemplateSpec)"
+      ExplicitSpecializationAsMemberFunc="$(BCC_ExplicitSpecializationAsMemberFunc)"
+      ConstructorDisplacements="$(BCC_ConstructorDisplacements)"
+      PushThisFirst="$(BCC_PushThisFirst)"
+      VTablePtrAtFront="$(BCC_VTablePtrAtFront)"
+      SlowVirtualBasePtrs="$(BCC_SlowVirtualBasePtrs)"
+      ZeroLengthEmptyMemberFuncs="$(BCC_ZeroLengthEmptyMemberFuncs)"
+      ZeroLengthEmptyBaseClass="$(BCC_ZeroLengthEmptyBaseClass)"
+      PCHName="$(BCC_PCHName)"
+      PCHInject="$(BCC_PCHInject)"
+      PCHUsage="$(BCC_PCHUsage)"
+      PCHWithExternalTypeFiles="$(BCC_PCHWithExternalTypeFiles)"
+      IncludeContentsOfHeaders="$(BCC_IncludeContentsOfHeaders)"
+      PCHCache="$(BCC_PCHCache)"
+      StopPCHAfter="$(BCC_StopPCHAfter)"
+      ReplaceHeaderName="$(BCC_ReplaceHeaderName)"
+      SmartPCHCache="$(BCC_SmartPCHCache)"
+      SaveMem="$(BCC_SaveMem)"
+      UTF8Output="$(BCC_UTF8Output)"
+      NoAutodependency="$(BCC_NoAutodependency)"
+      IgnoreSystemHeaders="$(BCC_IgnoreSystemHeaders)"
+      UnderscoreSymbolNames="$(BCC_UnderscoreSymbolNames)"
+      DontUnderscoreExportedSymbolNames="$(BCC_DontUnderscoreExportedSymbolNames)"
+      OutputBrowserInfo="$(BCC_OutputBrowserInfo)"
+      WarningIsError="$(BCC_WarningIsError)"
+      AllWarnings="$(BCC_AllWarnings)"
+      DisableWarnings="$(BCC_DisableWarnings)"
+      SelectedWarnings="$(BCC_SelectedWarnings)"
+      wamb="$(BCC_wamb)"
+      wamp="$(BCC_wamp)"
+      wasc="$(BCC_wasc)"
+      wasm="$(BCC_wasm)"
+      waus="$(BCC_waus)"
+      wbbf="$(BCC_wbbf)"
+      wbei="$(BCC_wbei)"
+      wbig="$(BCC_wbig)"
+      wccc="$(BCC_wccc)"
+      wcln="$(BCC_wcln)"
+      wcom="$(BCC_wcom)"
+      wcpt="$(BCC_wcpt)"
+      wcsu="$(BCC_wcsu)"
+      wdef="$(BCC_wdef)"
+      wdig="$(BCC_wdig)"
+      wdpu="$(BCC_wdpu)"
+      wdsz="$(BCC_wdsz)"
+      wdup="$(BCC_wdup)"
+      weas="$(BCC_weas)"
+      weff="$(BCC_weff)"
+      wext="$(BCC_wext)"
+      whch="$(BCC_whch)"
+      whid="$(BCC_whid)"
+      wias="$(BCC_wias)"
+      wibc="$(BCC_wibc)"
+      will="$(BCC_will)"
+      winl="$(BCC_winl)"
+      wlin="$(BCC_wlin)"
+      wlvc="$(BCC_wlvc)"
+      wmpc="$(BCC_wmpc)"
+      wmpd="$(BCC_wmpd)"
+      wmsg="$(BCC_wmsg)"
+      wnak="$(BCC_wnak)"
+      wncf="$(BCC_wncf)"
+      wnci="$(BCC_wnci)"
+      wncl="$(BCC_wncl)"
+      wnfd="$(BCC_wnfd)"
+      wngu="$(BCC_wngu)"
+      wnin="$(BCC_wnin)"
+      wnma="$(BCC_wnma)"
+      wnmu="$(BCC_wnmu)"
+      wnod="$(BCC_wnod)"
+      wnop="$(BCC_wnop)"
+      wnsf="$(BCC_wnsf)"
+      wnst="$(BCC_wnst)"
+      wntd="$(BCC_wntd)"
+      wnto="$(BCC_wnto)"
+      wnvf="$(BCC_wnvf)"
+      wobi="$(BCC_wobi)"
+      wobs="$(BCC_wobs)"
+      wofp="$(BCC_wofp)"
+      wosh="$(BCC_wosh)"
+      wovf="$(BCC_wovf)"
+      wpar="$(BCC_wpar)"
+      wpch="$(BCC_wpch)"
+      wpck="$(BCC_wpck)"
+      wpia="$(BCC_wpia)"
+      wpin="$(BCC_wpin)"
+      wpow="$(BCC_wpow)"
+      wpre="$(BCC_wpre)"
+      wpro="$(BCC_wpro)"
+      wrch="$(BCC_wrch)"
+      wret="$(BCC_wret)"
+      wrng="$(BCC_wrng)"
+      wrpt="$(BCC_wrpt)"
+      wrvl="$(BCC_wrvl)"
+      wsig="$(BCC_wsig)"
+      wspa="$(BCC_wspa)"
+      wstu="$(BCC_wstu)"
+      wstv="$(BCC_wstv)"
+      wsus="$(BCC_wsus)"
+      wtai="$(BCC_wtai)"
+      wtes="$(BCC_wtes)"
+      wthr="$(BCC_wthr)"
+      wucp="$(BCC_wucp)"
+      wuse="$(BCC_wuse)"
+      wvoi="$(BCC_wvoi)"
+      wzdi="$(BCC_wzdi)"
+      wnpp="$(BCC_wnpp)"
+      wprc="$(BCC_wprc)"
+      wifr="$(BCC_wifr)"
+      wali="$(BCC_wali)"
+      wstl="$(BCC_wstl)"
+      wcod="$(BCC_wcod)"
+      wpcm="$(BCC_wpcm)"
+      wmes="$(BCC_wmes)"
+      wmcs="$(BCC_wmcs)"
+      wonr="$(BCC_wonr)"
+      wmcc="$(BCC_wmcc)"
+      wpsb="$(BCC_wpsb)"
+      watr="$(BCC_watr)"
+      wexc="$(BCC_wexc)"
+      wimp="$(BCC_wimp)"
+      wptl="$(BCC_wptl)"
+      wmls="$(BCC_wmls)"
+      wmnc="$(BCC_wmnc)"
+      wntn="$(BCC_wntn)"
+      wcni="$(BCC_wcni)"
+      wpad="$(BCC_wpad)"
+      wdat="$(BCC_wdat)"
+      wdpr="$(BCC_wdpr)"
+      wdex="$(BCC_wdex)"
+      wiex="$(BCC_wiex)"
+      wucn="$(BCC_wucn)"
+      winc="$(BCC_winc)"
+      wrlo="$(BCC_wrlo)"
+      wiip="$(BCC_wiip)"
+      wmal="$(BCC_wmal)"
+      wbex="$(BCC_wbex)"
+      wiac="$(BCC_wiac)"
+      wmtx="$(BCC_wmtx)"
+      wpnf="$(BCC_wpnf)"
+      wnrm="$(BCC_wnrm)"
+      weoi="$(BCC_weoi)"
+      wbcx="$(BCC_wbcx)"
+      wdlx="$(BCC_wdlx)"
+      wdim="$(BCC_wdim)"
+      wdgu="$(BCC_wdgu)"
+      wdiu="$(BCC_wdiu)"
+      wdin="$(BCC_wdin)"
+      wind="$(BCC_wind)"
+      wsmx="$(BCC_wsmx)"
+      wadt="$(BCC_wadt)"
+      wpun="$(BCC_wpun)"
+      witl="$(BCC_witl)"
+      wtlb="$(BCC_wtlb)"
+      wpns="$(BCC_wpns)"
+      OptimizeForSize="$(BCC_OptimizeForSize)"
+      DisableOptimizations="$(BCC_DisableOptimizations)"
+      OptimizeForSpeed="$(BCC_OptimizeForSpeed)"
+      SelectedOptimizations="$(BCC_SelectedOptimizations)"
+      OptimizeJumps="$(BCC_OptimizeJumps)"
+      PentiumInstructionScheduling="$(BCC_PentiumInstructionScheduling)"
+      EliminateDeadStore="$(BCC_EliminateDeadStore)"
+      EliminateDuplicateExpressions="$(BCC_EliminateDuplicateExpressions)"
+      ExpandIntrinsics="$(BCC_ExpandIntrinsics)"
+      LoopInductionReduction="$(BCC_LoopInductionReduction)"
+      OptimizeVariables="$(BCC_OptimizeVariables)"
+    >
+        <Output
+                TaskParameter="OutputFile"
+                ItemName="BCC_OutputFile"/>
+    </CPP32>
+  </Target>
+
+  <Target Name="_PerformLink" DependsOnTargets="_ResolveOutput;_CheckLinkDependencies">
+    <CallTarget Targets="_PerformBCCILink" Condition="'$(USING_LD)'=='false' And '$(NO_LINK)'=='false'"/>
+    <CallTarget Targets="_PerformCLANGLDLink" Condition="'$(USING_LD)'=='true' And '$(NO_LINK)'=='false'" />
+    <CallTarget Targets="_DSymlinkGeneration" Condition="'$(USING_LD)'=='true' And '$(NO_LINK)'=='false' And '$(TLibLink)'!='true'"/>
+    <CallTarget Targets="_DeleteLnkFile" Condition="'$(USING_LD)'=='true'"/>
+
+    <!-- For Beta Preview Only -->
+    <Message Condition="'$(NO_LINK)'=='true'"
+             Text="This is a Compile-only preview with no linking support yet!"/>
+    <MessageMap
+      Condition="'$(NO_LINK)'=='true'"
+      FormatString="strSkipping"
+      Arg0="@(OutputFile)"
+    />
+  </Target>
+
+  <Target Name="_PerformBCCILink">
+    <ILINK32
+      Condition="'$(TLibLink)'!='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      KibitzTask="$(_KibitzTask)"
+      ForceExecute="$(ForceLink)"
+      PlatformTarget="$(Platform)"
+      LibraryPath="$(ILINK_LibraryPath)"
+      SysLibraryPath="$(ProfileLibraryPath);$(ProfileFrameworkPath)"
+      SysRoot="$(Profile_SysRoot)"
+      Frameworks="$(ProfileFrameworks)"
+      ObjectSearchPath="$(ILINK_ObjectSearchPath)"
+      IntermediateOutputPath="$(ILINK_IntermediateOutputPath)"
+      BpiLibOutputDir="$(ILINK_BpiLibOutputDir)"
+      FullDebugInfo="$(ILINK_FullDebugInfo)"
+      GenerateImportLibrary="$(ILINK_GenerateImportLibrary)"
+      GenerateDRC="$(ILINK_GenerateDRC)"
+      DisableIncrementalLinking="$(ILINK_DisableIncrementalLinking)"
+      MaxErrors="$(ILINK_MaxErrors)"
+      SuppressBanner="$(ILINK_SuppressBanner)"
+      KeepOutputFiles="$(ILINK_KeepOutputFiles)"
+      DisplayTime="$(ILINK_DisplayTime)"
+      AdditionalOptions="$(ILinkTarget) $(ILINK_AdditionalOptions)"
+      FilenameAlias="$(ILINK_FilenameAlias)"
+      AppType="$(ILINK_AppType)"
+      MapWithMangledNames="$(ILINK_MapWithMangledNames)"
+      MapFileType="$(ILINK_MapFileType)"
+      BaseAddress="$(ILINK_BaseAddress)"
+      HeapReserveSize="$(ILINK_HeapReserveSize)"
+      HeapCommitSize="$(ILINK_HeapCommitSize)"
+      StackReserveSize="$(ILINK_StackReserveSize)"
+      StackCommitSize="$(ILINK_StackCommitSize)"
+      Description="$(ILINK_Description)"
+      SectionFlags="$(ILINK_SectionFlags)"
+      ImageFlags="$(ILINK_ImageFlags)"
+      DelayLoadDll="$(ILINK_DelayLoadDll)"
+      ClearState="$(ILINK_ClearState)"
+      CaseSensitive="$(ILINK_CaseSensitive)"
+      Verbose="$(ILINK_Verbose)"
+      FastTLS="$(ILINK_FastTLS)"
+      ImageChecksum="$(ILINK_ImageChecksum)"
+      ReplaceResources="$(ILINK_ReplaceResources)"
+      FileAlignment="$(ILINK_FileAlignment)"
+      ObjectAlignment="$(ILINK_ObjectAlignment)"
+      OSVersion="$(ILINK_OSVersion)"
+      UserVersion="$(ILINK_UserVersion)"
+      PackageType="$(ILINK_PackageType)"
+      PackageBaseName="$(ILINK_PackageBaseName)"
+      ImageComment="$(ILINK_ImageComment)"
+      AllWarnings="$(ILINK_AllWarnings)"
+      DisableWarnings="$(ILINK_DisableWarnings)"
+      SelectedWarnings="$(ILINK_SelectedWarnings)"
+      wexp="$(ILINK_wexp)"
+      wrty="$(ILINK_wrty)"
+      wdup="$(ILINK_wdup)"
+      wdpl="$(ILINK_wdpl)"
+      wnou="$(ILINK_wnou)"
+      wuld="$(ILINK_wuld)"
+      wsrd="$(ILINK_wsrd)"
+      wdee="$(ILINK_wdee)"
+      wsnf="$(ILINK_wsnf)"
+      ObjFiles="$(ILINK_StartupObjs);$(DelphiRTLBpis);@(ILINK_PackageImports->'%(filename).$(BpiExt)');$(ILINK_AdditionalObjs);@(CompiledObjs);@(UserObjs)"
+      OutputFile="@(OutputFile)"
+      MapFile="@(ILinkMapFile)"
+      LibFiles="$(CodeGuard_Lib);$(DelphiRTLLibs);@(ILINK_PackageLibs->'%(filename).$(LibExt)');@(UserLibs);$(ILINK_AdditionalLibs)"
+      DefFile="@(DefFile)"
+      ResFiles="@(CompiledResources);@(ResFiles)"
+      FormResources="@(FormResources)"
+      ShowStdOut="$(ShowStdOut)"
+      >
+        <Output
+                TaskParameter="OutputFile"
+                ItemName="ILINK_OutputFile"/>
+        <Output
+                TaskParameter="StateFiles"
+                ItemName="ILINK_StateFiles"/>
+        <Output
+                TaskParameter="MapFile"
+                ItemName="ILINK_MapFile"/>
+        <Output
+                TaskParameter="SymbolFile"
+                ItemName="ILINK_SymbolFile"/>
+        <Output
+                TaskParameter="ImportLibrary"
+                ItemName="ILINK_ImportLibrary"/>
+        <Output
+                TaskParameter="PackageStaticLibrary"
+                ItemName="ILINK_PackageStaticLibrary"/>
+      </ILINK32>
+    <Delete
+      Condition="'$(TLibLink)'=='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')"
+      Files="@(OutputFile)"
+      TreatErrorsAsWarnings="true"
+      />
+    <TLIB
+      Condition="'$(TLibLink)'=='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')"
+      PlatformTarget="$(Platform)"
+      ObjFiles="@(CompiledObjs);@(UserObjs)"
+      OutputFile="@(OutputFile)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      ListingFileName="$(TLib_ListingFileName)"
+      CaseSensitive="$(TLib_CaseSensitive)"
+      PageSize="$(TLib_PageSize)"
+      PurgeCommentRecords="$(TLib_PurgeCommentRecords)"
+      ShowStdOut="$(ShowStdOut)"
+    >
+      <Output
+        TaskParameter="OutputFile"
+        ItemName="TLIB_OutputFile"/>
+    </TLIB>
+  </Target>
+
+  <!-- Secundary LD task file generation (.dsym, .lnk) -->
+  <Target Name="_DSymlinkGeneration" Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">
+    <Exec Condition="'$(BCC_SourceDebuggingOn)'=='true'"
+       Command='"$(BDS)\bin\dsymlink.exe" "$(OutputPath)"'/>
+  </Target>
+
+  <Target Name="__GenerateLnkFile" Condition="'$(TLibLink)'!='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')">
+    <ItemGroup>
+        <Lnk_ObjFiles Include="$(ILINK_AdditionalObjs);@(CompiledObjs);@(UserObjs)"/>
+        <Lnk_Files Include="$(LD_SetStartupCodeToUse);@(Lnk_ObjFiles);$(LD_ForceLoadStaticLibraries);@(LibFiles);$(LD_SystemLibraries)"/>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <RequiresQuotes Condition="'$(Platform)'=='$(cAndroidPlatform)'">true</RequiresQuotes>
+        <RequiresQuotes Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'">false</RequiresQuotes>
+    </PropertyGroup>
+    <!-- Print .lnk file content
+    <Message Text="Files in .lnk linker file: @(Lnk_Files)"/>
+    -->
+    <WriteLinesToFileEx
+      File="$(FinalOutputDir)$(MSBuildProjectName).lnk"
+      Lines="@(Lnk_Files)"
+      lineEnding="1"
+      RemoveCR="true"
+      Escaped="true"
+      RequiresQuotes="$(RequiresQuotes)"
+      Overwrite="true"/>
+
+    <ItemGroup>
+        <ObjectLinkerFile Condition="'$(Platform)'=='$(ciOSDevice32Platform)' Or '$(Platform)'=='$(ciOSDevice64Platform)'" Include="$(FinalOutputDir)$(MSBuildProjectName).lnk"/>
+        <Android_ObjectLinkerFile Condition="'$(Platform)'=='$(cAndroidPlatform)'" Include="$(FinalOutputDir)$(MSBuildProjectName).lnk"/>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_DeleteLnkFile" Condition="'$(ILINK_RemoveTmpLnkFile)'!='false'">
+    <Delete Files="@(ObjectLinkerFile)"/>
+    <Delete Files="@(Android_ObjectLinkerFile)"/>
+  </Target>
+
+
+
+  <Target Name="_PerformCLANGLDLink" DependsOnTargets="__GenerateLnkFile">
+    <LD
+      Condition="'$(TLibLink)'!='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      KibitzTask="$(_KibitzTask)"
+      ForceExecute="$(ForceLink)"
+      PlatformTarget="$(Platform)"
+      SysRoot="$(LD_SysRoot)"
+      SysLibRoot="$(Profile_SysRoot)"
+      SymbolsToExport="$(ILINK_SymbolsToExport)"
+      LibraryPath="$(ILINK_LibraryPath)"
+      ForceLoad_RtlHelper="$(LD_ForceLoad_RtlHelper)"
+      ForceLoad_Rtl="$(LD_ForceLoad_Rtl)"
+      StartLibraryGroup="$(LD_StartLibraryGroup)"
+      EndLibraryGroup="$(LD_EndLibraryGroup)"
+      ObjectLinkerFile="@(ObjectLinkerFile)"
+      Android_ObjectLinkerFile="@(Android_ObjectLinkerFile)"
+      AdditionalOptions="$(ILINK_AdditionalOptions)"
+      iOSMinimumVersion="$(ILINK_iOSMinimumVersion)"
+      FrameworkRoot="$(Profile_frameworkroot)"
+      FrameworkReferences="$(ProfileFrameworks)"
+
+      GCSections="$(LD_GCSections)"
+      VersionScriptFile="$(LD_VersionScriptFile)"
+      SharedLibrary="$(LD_SharedLibrary)"
+      UndefinedSymbols="$(LD_UndefinedSymbols)"
+      ReportUnresolvedSymRef="$(LD_ReportUnresolvedSymRef)"
+      UseLibrariesToLink="$(LD_UseLibrariesToLink)"
+      ObjFiles="$(ILINK_AdditionalObjs);@(CompiledObjs)"
+      SetEndCodeToUse="$(LD_SetEndCodeToUse)"
+      MapFile="@(ILinkMapFile)"
+      GenerateMapFile="$(ILINK_GenerateMapFile)"
+      iOSOutputMapFile="$(LD_iOSOutputMapFile)"
+      AndroidOutputMapFile="$(LD_AndroidOutputMapFile)"
+      RemoveUnreachableSymbols="$(LD_RemoveUnreachableSymbols)"
+      TargetArhitecture="$(LD_TargetArhitecture)"
+      LinkDynamically="$(LD_LinkDynamically)"
+      DebugInfoOptimization="$(LD_DebugInfoOptimization)"
+
+
+      OutputFileName="@(OutputFile)"
+      AndroidNDKLinkerFile="$(NDKArmLinuxAndroidFile)"
+      >
+        <Output
+                TaskParameter="OutputFile"
+                ItemName="ILINK_OutputFile"/>
+    </LD>
+    <Delete
+      Condition="'$(TLibLink)'=='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')"
+      Files="@(OutputFile)"
+      TreatErrorsAsWarnings="true"
+    />
+    <TLIB
+      Condition="'$(TLibLink)'=='true' And ('@(OutputOutOfDate)'!='' Or '$(ForceLink)'=='true')"
+      PlatformTarget="$(Platform)"
+      ObjFiles="@(CompiledObjs);@(UserObjs)"
+      OutputFile="@(OutputFile)"
+      ProjectFileName="$(MSBuildProjectFullPath)"
+      ListingFileName="$(TLib_ListingFileName)"
+      CaseSensitive="$(TLib_CaseSensitive)"
+      PageSize="$(TLib_PageSize)"
+      PurgeCommentRecords="$(TLib_PurgeCommentRecords)"
+      ShowStdOut="$(ShowStdOut)"
+    >
+      <Output
+        TaskParameter="OutputFile"
+        ItemName="TLIB_OutputFile"/>
+    </TLIB>
+
+  </Target>
+
+  <Target Name="CleanAndroidApkRootDir" Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+    <RemoveDir Directories="$(APK_RootDir)"/>
+  </Target>
+  
+  <!-- Android predexed jars files -->
+  <Target Name="CleanPredexedJars" DependsOnTargets="GetProjectJars" Condition="'$(Platform)'=='$(cAndroidPlatform)'">
+	<Delete Files="@(_JarsLocations->'%(PredexedJar)');"/>
+  </Target>
+
+  <Target Name="CleanOutputFiles" DependsOnTargets="_ResolveOutput;_ResolveExternalTypesPch">
+    <Delete Files="@(CompiledObjs)"/>
+    <Delete Files="@(CompiledResources)"/>
+    <Delete Files="@(CompiledDcus)"/>
+    <Delete Files="@(DCC_HppFiles)"/>
+    <Delete Files="@(PrecompiledHeaderFile)"/>
+    <Delete Files="@(ExternalTypesPch)"/>
+    <Delete Files="@(OtherOutputFiles)"/>
+    <Delete Files="@(CLANG_DependencyFiles)"/>
+    <Delete Files="$(FinalOutputDir)$(MSBuildProjectName).icns"/>
+	<Delete Files="$(FinalOutputDir)$(MSBuildProjectName).lnk"/>
+  </Target>
+
+  <Target Name="CleanLinkerStateFiles" DependsOnTargets="_ResolveOutput">
+    <Delete Files="@(ILinkStateFiles)"
+      Condition="'$(TLibLink)'!='true'"/>
+  </Target>
+
+  <Target Name="CleanLinkOutput" DependsOnTargets="_ResolveOutput;CleanLinkerStateFiles">
+    <Delete Files="@(OutputFile)"/>
+    <Delete Condition="'$(AppType)'=='Package'" Files="@(PackageLib)"/>
+    <Delete Files="@(ImportLibrary)"
+      Condition="'$(TLibLink)'!='true'"/>
+    <Delete Files="$(ILINK_MapFileName)"
+      Condition="'$(TLibLink)'!='true'"/>
+    <Delete Files="@(ILinkSymbolFile)"
+      Condition="'$(TLibLink)'!='true'"/>
+  </Target>
+
+  <Target Name="Make" DependsOnTargets="$(MakeDependsOnTargets)"/>
+  <Target Name="MakeOne" DependsOnTargets="$(MakeOneDependsOnTargets)"/>
+  <Target Name="Build" DependsOnTargets="$(BuildDependsOnTargets)"/>
+  <Target Name="BuildOne" DependsOnTargets="$(BuildOneDependsOnTargets)"/>
+  <Target Name="Link" DependsOnTargets="$(LinkDependsOnTargets)"/>
+  <Target Name="Clean" DependsOnTargets="$(CleanDependsOnTargets)"/>
+
+  <Target Name="MakeAll" Outputs="%(BuildConfiguration.Identity)">
+    <MessageMap
+      Condition="'%(BuildConfiguration.Identity)'!='Base'"
+      FormatString="strMakingConfiguration"
+      Arg0="%(BuildConfiguration.Identity)"
+    />
+    <MSBuild
+      Condition="'%(BuildConfiguration.Identity)'!='Base'"
+      Projects="$(MSBuildProjectFullPath)"
+      Properties="Config=%(BuildConfiguration.Identity)"
+      Targets="Make"
+    />
+  </Target>
+
+  <Target Name="BuildAll" Outputs="%(BuildConfiguration.Identity)">
+    <MessageMap
+      Condition="'%(BuildConfiguration.Identity)'!='Base'"
+      FormatString="strBuildingConfiguration"
+      Arg0="%(BuildConfiguration.Identity)"
+    />
+    <MSBuild
+      Condition="'%(BuildConfiguration.Identity)'!='Base'"
+      Projects="$(MSBuildProjectFullPath)"
+      Properties="Config=%(BuildConfiguration.Identity)"
+      Targets="Build"
+    />
+  </Target>
+
+  <Target Name="CleanAll" Outputs="%(BuildConfiguration.Identity)">
+    <MessageMap
+      Condition="'%(BuildConfiguration.Identity)'!='Base'"
+      FormatString="strCleaningConfiguration"
+      Arg0="%(BuildConfiguration.Identity)"
+    />
+    <MSBuild
+      Condition="'%(BuildConfiguration.Identity)'!='Base'"
+      Projects="$(MSBuildProjectFullPath)"
+      Properties="Config=%(BuildConfiguration.Identity)"
+      Targets="Clean"
+    />
+  </Target>
+
+  <Target Name="Default">
+    <CallTarget Targets="Make"/>
+  </Target>
+
+</Project>

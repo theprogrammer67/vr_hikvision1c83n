@@ -1,0 +1,14 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <PropertyGroup>
+        <CV2PDB Condition="$(CV2PDB) == ''">cv2pdb</CV2PDB>
+        <MAP2DBG Condition="$(MAP2DBG) == ''">map2dbg</MAP2DBG>
+        <Executable4PDB Condition="'$(Executable4PDB)' == ''">$(OutputPath)</Executable4PDB>
+        <Executable4PDB_Copy Condition="'$(Executable4PDB_Copy)' == ''">$(OutputPath).pdbed</Executable4PDB_Copy>
+        <CV2PDBIgnoreExitCode Condition="'$(CV2PDBIgnoreExitCode)' == ''">False</CV2PDBIgnoreExitCode>
+    </PropertyGroup>
+
+    <Target Name="_GeneratePDB">
+        <Exec Command="$(MAP2DBG) &quot;$(Executable4PDB)&quot;"/>
+        <Exec Command="$(CV2PDB) &quot;$(Executable4PDB)&quot; &quot;$(Executable4PDB_Copy)&quot;" IgnoreExitCode="$(CV2PDBIgnoreExitCode)"/>
+    </Target>
+</Project>

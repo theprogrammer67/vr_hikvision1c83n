@@ -1,0 +1,63 @@
+<Project xmlns='http://schemas.microsoft.com/developer/msbuild/2003' ToolsVersion="12.0">
+    <UsingTask TaskName="BRCC32" AssemblyFile="$(BDS)\bin\Borland.Build.Tasks.Shared.dll"/>
+
+    <!-- add "ResolveVersionInfoResources" target to add implicitly $(MSBuildProjectName).rc to a compiled resources list -->
+    <Target Name="ResolveVersionInfoResources" BeforeTargets="ResolveResources">
+        <!-- Source File Resolution -->
+        <PropertyGroup>
+            <VersionInfoResourceFile Condition="'$(VersionInfoResourceFile)' == ''">$(MSBuildProjectName).rc</VersionInfoResourceFile>
+        </PropertyGroup>
+        <ItemGroup>
+            <RcCompile Include="$(VersionInfoResourceFile)"/>
+        </ItemGroup>
+        <CreateItem Include="@(RcCompile)"
+                    Condition="( '%(EXTENSION)'=='.rc' ) "
+                    AdditionalMetadata="TargetExtension=%(RcCompile.TargetExtension)">
+            <Output TaskParameter="Include" ItemName="_RCFiles"/>
+        </CreateItem>
+        <ItemGroup>
+            <EmbeddedResource Include="@(_RCFiles)"/>
+            <RcFiles Include="@(_RCFiles)"/>
+        </ItemGroup>
+    </Target>
+
+    <!-- redefine "Win32ResourceDependencies" as it contains absent task "GetResourceDependencies" in Delphi 2007 distribution -->
+    <Target Name="Win32ResourceDependencies"/>
+
+    <!-- redefine "BuildWin32Resources" target as it contains absent task "BuildDelphiResources" call in Delphi 2007 distribution -->
+    <!-- and we must build resources  -->
+    <Target Name="BuildWin32Resources" Condition=" '@(_RCFiles)'!='' "
+        Inputs="@(_RCFiles);%(_RCDependencies.Dependencies)"
+        Outputs="@(_ResourceFiles)">
+        <CallTarget Targets="BrccCompile"/>
+    </Target>
+
+    <Target Name="BrccCompile" Outputs="%(RcFiles.Identity)">
+        <BRCC32 Condition="('@(RcFiles)'!='' And ('%(RcFiles.OptionOverrides)'!='true' And '%(RcFiles.HasBuildEvent)'!='true') Or $(FileToCompile)!='') Or '$(_KibitzTask)'!=''"
+            Compile="%(RcFiles.Identity)"
+            ForceExecute="true"
+            ProjectFileName="$(MSBuildProjectFullPath)"
+            InternalDependencyCheck="false"
+            ResFiles="$(BRCC_OutputDir)%(RcFiles.RelativeDir)%(RcFiles.filename)%(RcFiles.Suffix).res"
+            Language="$(BRCC_Language)"
+            ResponseFilename="$(BRCC_ResponseFilename)"
+            CodePage="$(BRCC_CodePage)"
+            UserSuppliedOptions="$(BRCC_UserSuppliedOptions)"
+            DeleteIncludePath="$(BRCC_DeleteIncludePath)"
+            Verbose="$(BRCC_Verbose)"
+            EnableMultiByte="$(BRCC_EnableMultiByte)"
+            ResourceType="$(BRCC_ResourceType)"
+            Defines="$(BRCC_Defines)"
+            OutputDir="$(BRCC_OutputDir)"
+            IncludePath="$(BRCC_IncludePath)"
+            AdditionalDependencies="@(RcFiles.DependentOn)"
+            ShowStdOut="$(ShowStdOut)"
+        />
+        <InvokeMSBuild
+            Condition="('%(RcFiles.OptionOverrides)'=='true' Or '%(RcFiles.HasBuildEvent)'=='true') And '$(FileToCompile)'==''"
+            Project="$(MSBuildProjectFullPath)"
+            Targets="MakeOne"
+            Properties="FileToCompile=%(RcFiles.Identity);Config=$(Config)"
+        />
+    </Target>
+</Project>
